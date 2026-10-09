@@ -93,15 +93,42 @@ class _CommentThreadState extends ConsumerState<CommentThread> {
             final comment = _comments[index];
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: Column(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    comment.userName,
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: Theme.of(context).brightness == Brightness.dark
+                        ? AppColors.brand800
+                        : AppColors.brand100,
+                    backgroundImage: comment.avatarUrl != null ? NetworkImage(comment.avatarUrl!) : null,
+                    child: comment.avatarUrl == null
+                        ? Text(
+                            comment.userName.isNotEmpty ? comment.userName[0] : '?',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white
+                                  : AppColors.brand800,
+                            ),
+                          )
+                        : null,
                   ),
-                  const SizedBox(height: 2),
-                  Text(comment.body),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          comment.userName,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(comment.body),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             );

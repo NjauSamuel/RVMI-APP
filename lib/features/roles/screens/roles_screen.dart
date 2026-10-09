@@ -5,9 +5,9 @@ import '../../../core/theme/app_colors.dart';
 import '../models/role.dart';
 import '../providers/roles_repository.dart';
 
-/// Developer and Senior Bishop are full-access built-ins and can't be
+/// Developer and Senior Admin are full-access built-ins and can't be
 /// edited/deleted here; anything else is a free combination of checkbox
-/// permissions the Senior Bishop can define for the church's own
+/// permissions a full-access role can define for the church's own
 /// ministry structure.
 class RolesScreen extends ConsumerWidget {
   const RolesScreen({super.key});

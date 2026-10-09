@@ -1,7 +1,8 @@
 /// Compile-time, non-secret app configuration.
 ///
-/// Override at build/run time with `--dart-define`, e.g.:
-///   flutter run --dart-define=GOOGLE_SERVER_CLIENT_ID=xxxx.apps.googleusercontent.com
+/// The Web client ID is the default, so a plain `flutter run` signs in
+/// with Google. Override it with `--dart-define=GOOGLE_SERVER_CLIENT_ID=...`
+/// if you need a different client.
 class AppSettings {
   const AppSettings._();
 
@@ -10,6 +11,6 @@ class AppSettings {
   /// verify server-side. See ../../../../GOOGLE.md.
   static const String googleServerClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',
-    defaultValue: '',
+    defaultValue: '747925347975-trtoqopcrbkuhlfccgo7p4gsprt5dbrj.apps.googleusercontent.com',
   );
 }

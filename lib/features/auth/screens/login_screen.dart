@@ -49,7 +49,7 @@ class LoginScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Every photo and video from church life — organised,\n'
+                  'Every photo and video from church — organised,\n'
                   'tagged, and easy to find again.',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(

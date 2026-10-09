@@ -38,6 +38,7 @@ class EventComment {
     required this.id,
     required this.body,
     required this.userName,
+    required this.avatarUrl,
     required this.createdAt,
   });
 
@@ -47,6 +48,7 @@ class EventComment {
       id: json['id'] as int,
       body: json['body'] as String,
       userName: user?['name'] as String? ?? 'Member',
+      avatarUrl: user?['avatar_url'] as String?,
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
     );
   }
@@ -54,5 +56,6 @@ class EventComment {
   final int id;
   final String body;
   final String userName;
+  final String? avatarUrl;
   final DateTime createdAt;
 }

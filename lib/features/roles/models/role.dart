@@ -27,6 +27,7 @@ class AppUser {
     required this.id,
     required this.name,
     required this.email,
+    required this.avatarUrl,
     required this.isActive,
     required this.roles,
   });
@@ -35,6 +36,7 @@ class AppUser {
     id: json['id'] as int,
     name: json['name'] as String,
     email: json['email'] as String,
+    avatarUrl: json['avatar_url'] as String?,
     isActive: json['is_active'] as bool? ?? true,
     roles: (json['roles'] as List? ?? []).map((e) => e.toString()).toList(),
   );
@@ -42,6 +44,7 @@ class AppUser {
   final int id;
   final String name;
   final String email;
+  final String? avatarUrl;
   final bool isActive;
   final List<String> roles;
 }

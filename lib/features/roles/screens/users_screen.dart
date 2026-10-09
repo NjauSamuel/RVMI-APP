@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -34,15 +35,18 @@ class UsersScreen extends ConsumerWidget {
                 backgroundColor: user.isActive
                     ? (dark ? AppColors.brand800 : AppColors.brand100)
                     : (dark ? AppColors.surfaceBaseDark : AppColors.surfaceAlt),
-                child: Text(
-                  user.name.isNotEmpty ? user.name[0] : '?',
-                  style: TextStyle(
-                    color: user.isActive
-                        ? (dark ? Colors.white : AppColors.brand800)
-                        : (dark ? AppColors.textSecondaryDark : AppColors.textSecondary),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+                child: user.avatarUrl == null
+                    ? Text(
+                        user.name.isNotEmpty ? user.name[0] : '?',
+                        style: TextStyle(
+                          color: user.isActive
+                              ? (dark ? Colors.white : AppColors.brand800)
+                              : (dark ? AppColors.textSecondaryDark : AppColors.textSecondary),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      )
+                    : null,
               ),
               title: Text(user.name),
               subtitle: Text('${user.email} · ${user.roles.join(', ')}'),
@@ -58,7 +62,7 @@ class UsersScreen extends ConsumerWidget {
                 },
                 itemBuilder: (context) => [
                   const PopupMenuItem(value: 'Developer', child: Text('Set role: Developer')),
-                  const PopupMenuItem(value: 'Senior Bishop', child: Text('Set role: Senior Bishop')),
+                  const PopupMenuItem(value: 'Senior Admin', child: Text('Set role: Senior Admin')),
                   const PopupMenuItem(value: 'Member', child: Text('Set role: Member')),
                   const PopupMenuDivider(),
                   const PopupMenuItem(
@@ -118,19 +122,51 @@ class UsersScreen extends ConsumerWidget {
         role: role,
       );
       ref.invalidate(usersListProvider);
+      final memberName = nameController.text.trim();
       if (context.mounted) {
         await showDialog<void>(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Account created'),
-            content: Text(
-              'Temporary password: $tempPassword\n\nShare this with ${nameController.text.trim()}, '
-              'or they can sign in with Google using this same email instead.',
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Done')),
-            ],
-          ),
+          builder: (context) {
+            var copied = false;
+            return StatefulBuilder(
+              builder: (context, setState) => AlertDialog(
+                title: const Text('Account created'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Temporary password'),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SelectableText(
+                            tempPassword,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: copied ? 'Copied' : 'Copy password',
+                          onPressed: () async {
+                            await Clipboard.setData(ClipboardData(text: tempPassword));
+                            setState(() => copied = true);
+                          },
+                          icon: Icon(copied ? Icons.check : Icons.copy),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Share this with $memberName, or they can sign in with Google using this same email instead.',
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Done')),
+                ],
+              ),
+            );
+          },
         );
       }
     }
