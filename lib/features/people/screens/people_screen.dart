@@ -35,12 +35,13 @@ class PeopleScreen extends ConsumerWidget {
             itemCount: list.length,
             itemBuilder: (context, index) {
               final person = list[index];
+              final dark = Theme.of(context).brightness == Brightness.dark;
               return ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: AppColors.brand100,
+                  backgroundColor: dark ? AppColors.brand800 : AppColors.brand100,
                   child: Icon(
                     person.indexedInRekognition ? Icons.face_retouching_natural : Icons.face,
-                    color: AppColors.brand600,
+                    color: dark ? AppColors.brand300 : AppColors.brand600,
                   ),
                 ),
                 title: Text(person.name),

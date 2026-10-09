@@ -8,6 +8,20 @@ class InventoryCategory {
   final String name;
 }
 
+class InventoryReceipt {
+  const InventoryReceipt({required this.id, required this.url, required this.mime});
+
+  factory InventoryReceipt.fromJson(Map<String, dynamic> json) => InventoryReceipt(
+    id: json['id'] as int,
+    url: json['url'] as String,
+    mime: json['mime'] as String? ?? 'image',
+  );
+
+  final int id;
+  final String url;
+  final String mime;
+}
+
 class InventoryAsset {
   const InventoryAsset({
     required this.id,
@@ -16,8 +30,7 @@ class InventoryAsset {
     required this.categoryName,
     required this.description,
     required this.assetImageUrl,
-    required this.receiptUrl,
-    required this.receiptMime,
+    required this.receipts,
     required this.purchaseDate,
     required this.warrantyExpiry,
     required this.warrantyActive,
@@ -31,8 +44,9 @@ class InventoryAsset {
     categoryName: json['category'] as String?,
     description: json['description'] as String?,
     assetImageUrl: json['asset_image_url'] as String?,
-    receiptUrl: json['receipt_url'] as String?,
-    receiptMime: json['receipt_mime'] as String?,
+    receipts: (json['receipts'] as List? ?? const [])
+        .map((entry) => InventoryReceipt.fromJson(Map<String, dynamic>.from(entry as Map)))
+        .toList(),
     purchaseDate: json['purchase_date'] as String?,
     warrantyExpiry: json['warranty_expiry'] as String?,
     warrantyActive: json['warranty_active'] as bool? ?? false,
@@ -45,8 +59,7 @@ class InventoryAsset {
   final String? categoryName;
   final String? description;
   final String? assetImageUrl;
-  final String? receiptUrl;
-  final String? receiptMime;
+  final List<InventoryReceipt> receipts;
   final String? purchaseDate;
   final String? warrantyExpiry;
   final bool warrantyActive;

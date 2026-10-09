@@ -43,7 +43,13 @@ class RolesScreen extends ConsumerWidget {
                     Text(role.name, style: const TextStyle(fontWeight: FontWeight.w700)),
                     if (role.isBuiltIn) ...[
                       const SizedBox(width: 8),
-                      const Icon(Icons.verified, size: 14, color: AppColors.brand600),
+                      Icon(
+                        Icons.verified,
+                        size: 14,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.brand300
+                            : AppColors.brand600,
+                      ),
                     ],
                   ],
                 ),
@@ -99,7 +105,11 @@ class RolesScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Text(
                       'Built-in roles have every permission and can\'t be edited.',
-                      style: TextStyle(color: AppColors.textSecondary),
+                      style: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondary,
+                      ),
                     ),
                   ),
                 const SizedBox(height: 8),

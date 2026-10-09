@@ -81,7 +81,11 @@ class _CommentThreadState extends ConsumerState<CommentThread> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               'No comments yet. Be the first to share how it went.',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondary,
+              ),
             ),
           )
         else

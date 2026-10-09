@@ -158,7 +158,10 @@ class _UploadPickerScreenState extends ConsumerState<UploadPickerScreen> {
                     flex: 2,
                     child: FilledButton(
                       onPressed: (_picked.isEmpty || _uploading) ? null : _upload,
-                      style: FilledButton.styleFrom(backgroundColor: AppColors.brand600),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.brand600,
+                        foregroundColor: Colors.white,
+                      ),
                       child: _uploading
                           ? Text('Uploading $_uploadedCount/${_picked.length}...')
                           : Text('Upload ${_picked.length} item(s)'),

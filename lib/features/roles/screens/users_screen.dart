@@ -28,10 +28,21 @@ class UsersScreen extends ConsumerWidget {
           itemCount: list.length,
           itemBuilder: (context, index) {
             final user = list[index];
+            final dark = Theme.of(context).brightness == Brightness.dark;
             return ListTile(
               leading: CircleAvatar(
-                backgroundColor: user.isActive ? AppColors.brand100 : AppColors.surfaceAlt,
-                child: Text(user.name.isNotEmpty ? user.name[0] : '?'),
+                backgroundColor: user.isActive
+                    ? (dark ? AppColors.brand800 : AppColors.brand100)
+                    : (dark ? AppColors.surfaceBaseDark : AppColors.surfaceAlt),
+                child: Text(
+                  user.name.isNotEmpty ? user.name[0] : '?',
+                  style: TextStyle(
+                    color: user.isActive
+                        ? (dark ? Colors.white : AppColors.brand800)
+                        : (dark ? AppColors.textSecondaryDark : AppColors.textSecondary),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
               title: Text(user.name),
               subtitle: Text('${user.email} · ${user.roles.join(', ')}'),

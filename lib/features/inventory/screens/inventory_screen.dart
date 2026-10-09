@@ -52,6 +52,7 @@ class _AssetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -68,8 +69,11 @@ class _AssetCard extends StatelessWidget {
                   child: asset.assetImageUrl != null
                       ? Image.network(asset.assetImageUrl!, fit: BoxFit.cover)
                       : Container(
-                          color: AppColors.brand100,
-                          child: const Icon(Icons.inventory_2_outlined),
+                          color: dark ? AppColors.brand800 : AppColors.brand100,
+                          child: Icon(
+                            Icons.inventory_2_outlined,
+                            color: dark ? Colors.white : AppColors.brand800,
+                          ),
                         ),
                 ),
               ),
@@ -80,7 +84,13 @@ class _AssetCard extends StatelessWidget {
                   children: [
                     Text(asset.name, style: const TextStyle(fontWeight: FontWeight.w700)),
                     if (asset.categoryName != null)
-                      Text(asset.categoryName!, style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                      Text(
+                        asset.categoryName!,
+                        style: TextStyle(
+                          color: dark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
@@ -89,18 +99,26 @@ class _AssetCard extends StatelessWidget {
                         if (asset.warrantyExpiry != null)
                           Chip(
                             label: Text(asset.warrantyActive ? 'Under warranty' : 'Warranty expired'),
-                            labelStyle: const TextStyle(fontSize: 11),
+                            labelStyle: TextStyle(
+                              fontSize: 11,
+                              color: dark ? AppColors.textDefaultDark : AppColors.textDefault,
+                            ),
                             visualDensity: VisualDensity.compact,
-                            backgroundColor:
-                                asset.warrantyActive ? AppColors.brand50 : AppColors.surfaceAlt,
+                            backgroundColor: asset.warrantyActive
+                                ? (dark ? AppColors.brand800 : AppColors.brand50)
+                                : (dark ? AppColors.surfaceBaseDark : AppColors.surfaceAlt),
                           ),
                       ],
                     ),
                   ],
                 ),
               ),
-              if (asset.receiptUrl != null)
-                const Icon(Icons.receipt_long, color: AppColors.brand600, size: 18),
+              if (asset.receipts.isNotEmpty)
+                Icon(
+                  Icons.receipt_long,
+                  color: dark ? AppColors.brand300 : AppColors.brand600,
+                  size: 18,
+                ),
             ],
           ),
         ),

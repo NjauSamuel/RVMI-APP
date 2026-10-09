@@ -35,7 +35,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                 setState(() => _selected.clear());
                 ref.invalidate(pendingReviewProvider);
               },
-              child: Text('Approve ${_selected.length}', style: const TextStyle(color: Colors.white)),
+              child: Text('Approve ${_selected.length}'),
             ),
         ],
       ),
@@ -157,7 +157,15 @@ class _ReviewCardState extends ConsumerState<_ReviewCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Item #${item.id}', style: const TextStyle(fontWeight: FontWeight.w700)),
-                      Text(item.type, style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                      Text(
+                        item.type,
+                        style: TextStyle(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -217,7 +225,10 @@ class _ReviewCardState extends ConsumerState<_ReviewCard> {
                 Expanded(
                   child: FilledButton(
                     onPressed: _busy ? null : _approve,
-                    style: FilledButton.styleFrom(backgroundColor: AppColors.brand600),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.brand600,
+                      foregroundColor: Colors.white,
+                    ),
                     child: _busy ? const Text('...') : const Text('Approve'),
                   ),
                 ),

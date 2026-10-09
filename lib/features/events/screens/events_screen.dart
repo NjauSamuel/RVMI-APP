@@ -131,7 +131,11 @@ class _EventCard extends StatelessWidget {
                       if (event.coverBlurhash != null)
                         BlurHash(hash: event.coverBlurhash!)
                       else
-                        Container(color: AppColors.brand100),
+                        Container(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? AppColors.brand800
+                              : AppColors.brand100,
+                        ),
                       if (event.coverThumbnailUrl != null)
                         CachedNetworkImage(
                           imageUrl: event.coverThumbnailUrl!,
@@ -158,14 +162,22 @@ class _EventCard extends StatelessWidget {
                           ),
                         ),
                         if (event.isPrivate)
-                          const Icon(Icons.lock, size: 16, color: AppColors.textSecondary),
+                          Icon(
+                            Icons.lock,
+                            size: 16,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondary,
+                          ),
                       ],
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '${event.mediaCount} item(s)${event.eventDate != null ? ' · ${event.eventDate}' : ''}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondary,
                       ),
                     ),
                   ],
