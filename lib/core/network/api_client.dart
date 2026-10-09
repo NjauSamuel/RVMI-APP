@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../storage/secure_token_store.dart';
 import 'endpoints.dart';
@@ -98,9 +99,17 @@ class ApiException implements Exception {
   factory ApiException.fromDioException(DioException e) {
     final status = e.response?.statusCode;
     final body = e.response?.data;
+    debugPrint(
+      'API ${e.requestOptions.method} ${e.requestOptions.uri} '
+      'failed (${e.type.name}${status == null ? '' : ', HTTP $status'}): $body',
+    );
 
     if (body is Map) {
-      final message = body['message'] as String? ?? _fallbackMessage(e);
+      final rawMessage = body['message'];
+      final serverMessage = rawMessage is String ? rawMessage.trim() : '';
+      final message = _isGenericServerMessage(serverMessage)
+          ? _fallbackMessage(e)
+          : serverMessage;
       final rawErrors = body['errors'];
       final fieldErrors = <String, List<String>>{};
 
@@ -142,8 +151,33 @@ class ApiException implements Exception {
         'The connection timed out. Check your internet and try again.',
       DioExceptionType.connectionError =>
         'Could not reach RVMI Media. Check your internet connection.',
-      _ => 'Something went wrong. Please try again.',
+      DioExceptionType.badCertificate =>
+        'The secure connection to RVMI Media failed.',
+      DioExceptionType.badResponse => _unexpectedResponse(e),
+      _ => 'Could not sign in (${e.type.name}${_statusSuffix(e)}).',
     };
+  }
+
+  static bool _isGenericServerMessage(String message) {
+    final normalized = message.toLowerCase();
+    return normalized.isEmpty ||
+        normalized == 'server error' ||
+        normalized == 'something went wrong. please try again.';
+  }
+
+  static String _statusSuffix(DioException e) {
+    final status = e.response?.statusCode;
+    return status == null ? '' : ', HTTP $status';
+  }
+
+  static String _unexpectedResponse(DioException e) {
+    final status = e.response?.statusCode;
+    final code = status == null ? '' : ' (HTTP $status)';
+    final body = e.response?.data;
+    if (body is String && body.contains('<')) {
+      return 'The server returned a web page$code instead of a login response.';
+    }
+    return 'Could not sign in$code.';
   }
 
   @override

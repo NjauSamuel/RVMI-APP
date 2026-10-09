@@ -4,7 +4,8 @@ import 'package:flutter/foundation.dart';
 /// Base URL + path constants for the RVMI Media API.
 ///
 /// Same split as DeskCheque-Mobile: production is
-/// `https://rvmi.deskcheque.top`. Debug `flutter run` probes
+/// `http://rvmi.deskcheque.top` until that host's certificate matches.
+/// Debug `flutter run` probes
 /// `http://10.0.2.2:8000/up` once; if local Laravel is down it falls
 /// back to production. Override with
 /// `--dart-define=API_BASE_URL=https://...` (host only, no trailing
@@ -13,7 +14,7 @@ class Endpoints {
   const Endpoints._();
 
   static const _override = String.fromEnvironment('API_BASE_URL');
-  static const _production = 'https://rvmi.deskcheque.top';
+  static const _production = 'http://rvmi.deskcheque.top';
   static const _localDebug = 'http://10.0.2.2:8000';
 
   static String? _resolvedHost;

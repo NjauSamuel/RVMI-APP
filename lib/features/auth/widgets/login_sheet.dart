@@ -132,9 +132,10 @@ class _LoginSheetState extends ConsumerState<LoginSheet> {
             Text(
               'Welcome back',
               textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onSurface,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -149,40 +150,6 @@ class _LoginSheetState extends ConsumerState<LoginSheet> {
               ErrorBanner(message: _errorMessage!),
               const SizedBox(height: 16),
             ],
-            FilledButton.icon(
-              onPressed: busy ? null : _submitWithGoogle,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              icon: _googleSubmitting
-                  ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: colorScheme.onPrimary,
-                      ),
-                    )
-                  : const Icon(Icons.g_mobiledata, size: 26),
-              label: const Text('Continue with Google'),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(child: Divider(color: colorScheme.outlineVariant)),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    'or',
-                    style: TextStyle(
-                      color: colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
-                  ),
-                ),
-                Expanded(child: Divider(color: colorScheme.outlineVariant)),
-              ],
-            ),
-            const SizedBox(height: 20),
             Form(
               key: _formKey,
               child: Column(
@@ -250,6 +217,41 @@ class _LoginSheetState extends ConsumerState<LoginSheet> {
                 ],
               ),
             ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(child: Divider(color: colorScheme.outlineVariant)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'or',
+                    style: TextStyle(
+                      color: colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ),
+                Expanded(child: Divider(color: colorScheme.outlineVariant)),
+              ],
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: busy ? null : _submitWithGoogle,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              icon: _googleSubmitting
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: colorScheme.onPrimary,
+                      ),
+                    )
+                  : const Icon(Icons.g_mobiledata, size: 26),
+              label: const Text('Continue with Google'),
+            ),
+            const SizedBox(height: 40),
           ],
         ),
       ),

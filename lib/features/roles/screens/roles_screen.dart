@@ -155,7 +155,10 @@ class RolesScreen extends ConsumerWidget {
                             ref.invalidate(rolesListProvider);
                             if (context.mounted) Navigator.of(context).pop();
                           },
-                          style: FilledButton.styleFrom(backgroundColor: AppColors.brand600),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.brand600,
+                            foregroundColor: Colors.white,
+                          ),
                           child: const Text('Save'),
                         ),
                       ),

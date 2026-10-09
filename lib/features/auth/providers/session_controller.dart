@@ -66,11 +66,9 @@ class SessionController extends Notifier<SessionState> {
         return;
       }
 
-      if (e.isNetworkError) {
-        return;
-      }
-
       await store.clear();
+      state = const SessionUnauthenticated();
+    } catch (_) {
       state = const SessionUnauthenticated();
     }
   }

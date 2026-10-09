@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/app.dart';
 import 'core/network/endpoints.dart';
+import 'core/storage/app_preferences.dart';
+import 'core/storage/providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,5 +21,12 @@ void main() async {
     // No Firebase config yet - continue without push notifications.
   }
 
-  runApp(const ProviderScope(child: RvmiMediaApp()));
+  final preferences = await AppPreferences.create();
+
+  runApp(
+    ProviderScope(
+      overrides: [appPreferencesProvider.overrideWithValue(preferences)],
+      child: const RvmiMediaApp(),
+    ),
+  );
 }

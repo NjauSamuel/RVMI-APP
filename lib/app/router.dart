@@ -42,14 +42,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) {
-          final session = notifier.value;
-          if (session is SessionAuthenticated) return const HomeShellScreen();
-          return const SplashScreen();
-        },
-      ),
+      GoRoute(path: '/', builder: (context, state) => const SessionGate()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/media/:id',
@@ -94,3 +87,16 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+/// `/` stays the current location when a saved session finishes loading, so
+/// GoRouter does not rebuild a one-shot builder. Watch the session directly.
+class SessionGate extends ConsumerWidget {
+  const SessionGate({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(sessionControllerProvider);
+    if (session is SessionAuthenticated) return const HomeShellScreen();
+    return const SplashScreen();
+  }
+}

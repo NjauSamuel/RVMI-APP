@@ -10,15 +10,13 @@ class LoginScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       body: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [AppColors.brand700, AppColors.brand500, AppColors.brand300],
+            colors: [AppColors.brand800, AppColors.brand600, AppColors.brand500],
           ),
         ),
         child: SafeArea(
@@ -64,7 +62,7 @@ class LoginScreen extends StatelessWidget {
                   onPressed: () => showLoginSheet(context),
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.white,
-                    foregroundColor: colorScheme.primary,
+                    foregroundColor: AppColors.brand800,
                     minimumSize: const Size.fromHeight(52),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),

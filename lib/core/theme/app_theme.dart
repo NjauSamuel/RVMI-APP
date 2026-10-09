@@ -35,8 +35,12 @@ class AppTheme {
   }
 
   static ThemeData _base(ColorScheme colorScheme) {
-    final textTheme = GoogleFonts.interTextTheme();
     final isDark = colorScheme.brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.textDefaultDark : AppColors.textDefault;
+    final textTheme = GoogleFonts.interTextTheme().apply(
+      bodyColor: textColor,
+      displayColor: textColor,
+    );
 
     return ThemeData(
       useMaterial3: true,
@@ -63,8 +67,11 @@ class AppTheme {
             .withValues(alpha: 0.6),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final active = states.contains(WidgetState.selected);
-          return textTheme.labelMedium?.copyWith(
-            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+          return textTheme.labelSmall?.copyWith(
+            fontSize: 10,
+            height: 1.1,
+            letterSpacing: 0.1,
+            fontWeight: active ? FontWeight.w600 : FontWeight.w500,
             color: active
                 ? (isDark ? AppColors.navActiveDark : AppColors.navActiveLight)
                 : (isDark
