@@ -142,6 +142,8 @@ class _AssetFormScreenState extends ConsumerState<AssetFormScreen> {
     }
 
     final categories = ref.watch(inventoryCategoriesProvider);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final hintColor = dark ? AppColors.textSecondaryDark : AppColors.textSecondary;
 
     return Scaffold(
       appBar: AppBar(title: Text(_isEditing ? 'Edit asset' : 'New asset')),
@@ -153,9 +155,9 @@ class _AssetFormScreenState extends ConsumerState<AssetFormScreen> {
             child: Container(
               height: 140,
               decoration: BoxDecoration(
-                color: AppColors.surfaceAlt,
+                color: dark ? AppColors.surfaceAltDark : AppColors.surfaceAlt,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: dark ? AppColors.borderDark : AppColors.border),
               ),
               child: _assetImagePreviewPath != null
                   ? ClipRRect(
@@ -167,13 +169,13 @@ class _AssetFormScreenState extends ConsumerState<AssetFormScreen> {
                           borderRadius: BorderRadius.circular(14),
                           child: Image.network(_existingAssetImageUrl!, fit: BoxFit.cover, width: double.infinity),
                         )
-                      : const Center(
+                      : Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.add_a_photo_outlined),
-                              SizedBox(height: 6),
-                              Text('Add a photo'),
+                              Icon(Icons.add_a_photo_outlined, color: hintColor),
+                              const SizedBox(height: 6),
+                              Text('Add a photo', style: TextStyle(color: hintColor)),
                             ],
                           ),
                         ),
@@ -248,7 +250,10 @@ class _AssetFormScreenState extends ConsumerState<AssetFormScreen> {
           const SizedBox(height: 24),
           FilledButton(
             onPressed: _saving ? null : _save,
-            style: FilledButton.styleFrom(backgroundColor: AppColors.brand600),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.brand600,
+              foregroundColor: Colors.white,
+            ),
             child: Text(_saving ? 'Saving...' : 'Save asset'),
           ),
           if (_isEditing) ...[
