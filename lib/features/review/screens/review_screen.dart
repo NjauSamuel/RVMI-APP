@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -32,6 +33,29 @@ class ReviewScreen extends ConsumerStatefulWidget {
 class _ReviewScreenState extends ConsumerState<ReviewScreen> {
   final Set<int> _selected = {};
   bool _busy = false;
+  Timer? _posterPoll;
+  List<ReviewItem> _shown = const [];
+
+  @override
+  void dispose() {
+    _posterPoll?.cancel();
+    super.dispose();
+  }
+
+  void _syncPosterPoll(List<ReviewItem> items) {
+    final waiting = items.any(
+      (item) => item.isPreparing || item.thumbnailUrl == null,
+    );
+    if (!waiting) {
+      _posterPoll?.cancel();
+      _posterPoll = null;
+      return;
+    }
+    _posterPoll ??= Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted) return;
+      ref.invalidate(pendingReviewProvider);
+    });
+  }
 
   Future<void> _assignEvent(List<ReviewItem> selected) async {
     List<ChurchEvent> events;
@@ -157,7 +181,10 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
   @override
   Widget build(BuildContext context) {
     final pending = ref.watch(pendingReviewProvider);
-    final items = pending.asData?.value ?? const <ReviewItem>[];
+    final latest = pending.asData?.value;
+    if (latest != null) _shown = latest;
+    final items = _shown;
+    _syncPosterPoll(items);
     final selected = items
         .where((item) => _selected.contains(item.id))
         .toList();
@@ -217,47 +244,43 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
           ),
         ),
       ),
-      body: pending.when(
-        data: (loaded) {
-          if (loaded.isEmpty) {
-            return const Center(child: Text('Nothing waiting for review.'));
-          }
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.maxWidth.isFinite
-                  ? constraints.maxWidth
-                  : MediaQuery.sizeOf(context).width;
-              return GridView.builder(
-                padding: const EdgeInsets.all(8),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: photoColumnCount(width),
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                ),
-                itemCount: loaded.length,
-                itemBuilder: (context, index) {
-                  final item = loaded[index];
-                  return _ReviewTile(
-                    item: item,
-                    selected: _selected.contains(item.id),
-                    onSelectChanged: (value) => setState(() {
-                      if (value) {
-                        _selected.add(item.id);
-                      } else {
-                        _selected.remove(item.id);
-                      }
-                    }),
-                    onOpenDetails: () => _openDetails(item),
-                  );
-                },
-              );
-            },
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) =>
-            const Center(child: Text('Could not load pending items.')),
-      ),
+      body: items.isEmpty && pending.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : pending.hasError && items.isEmpty
+          ? const Center(child: Text('Could not load pending items.'))
+          : items.isEmpty
+          ? const Center(child: Text('Nothing waiting for review.'))
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth.isFinite
+                    ? constraints.maxWidth
+                    : MediaQuery.sizeOf(context).width;
+                return GridView.builder(
+                  padding: const EdgeInsets.all(8),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: photoColumnCount(width),
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                  ),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    return _ReviewTile(
+                      item: item,
+                      selected: _selected.contains(item.id),
+                      onSelectChanged: (value) => setState(() {
+                        if (value) {
+                          _selected.add(item.id);
+                        } else {
+                          _selected.remove(item.id);
+                        }
+                      }),
+                      onOpenDetails: () => _openDetails(item),
+                    );
+                  },
+                );
+              },
+            ),
     );
   }
 }
@@ -275,11 +298,7 @@ class _ReviewTile extends StatelessWidget {
   final ValueChanged<bool> onSelectChanged;
   final VoidCallback onOpenDetails;
 
-  String? get _previewUrl {
-    if (item.thumbnailUrl != null) return item.thumbnailUrl;
-    if (!item.isVideo) return item.fullUrl;
-    return null;
-  }
+  String? get _previewUrl => item.thumbnailUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -316,15 +335,7 @@ class _ReviewTile extends StatelessWidget {
                       color: Colors.black12,
                       child: Icon(item.isVideo ? Icons.videocam : Icons.image),
                     )
-                  : item.thumbnailUrl != null
-                  ? GridPreviewImage(mediaId: item.id, url: preview)
-                  : CachedNetworkImage(
-                      imageUrl: preview,
-                      cacheManager: MediaCaches.fullPhotos,
-                      cacheKey: MediaCaches.fullKey(item.id),
-                      fit: BoxFit.cover,
-                      errorWidget: (_, _, _) => const SizedBox.shrink(),
-                    ),
+                  : GridPreviewImage(mediaId: item.id, url: preview),
             ),
             if (item.isVideo)
               const IgnorePointer(
@@ -336,7 +347,7 @@ class _ReviewTile extends StatelessWidget {
                   ),
                 ),
               ),
-            if (item.isPreparing && preview == null)
+            if (preview == null)
               const Align(
                 alignment: Alignment.bottomCenter,
                 child: ColoredBox(

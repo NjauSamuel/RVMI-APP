@@ -112,7 +112,11 @@ class GridPreviewImage extends StatelessWidget {
       memCacheWidth: cachePixels,
       fit: BoxFit.cover,
       fadeInDuration: const Duration(milliseconds: 180),
-      errorWidget: (_, _, _) => const SizedBox.shrink(),
+      placeholder: (_, _) => const ColoredBox(color: Color(0x14000000)),
+      errorWidget: (_, _, _) => const ColoredBox(
+        color: Color(0x14000000),
+        child: Center(child: Icon(Icons.broken_image_outlined)),
+      ),
     );
   }
 }
