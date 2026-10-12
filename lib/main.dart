@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/app.dart';
+import 'core/media/media_cache.dart';
 import 'core/network/endpoints.dart';
 import 'core/storage/app_preferences.dart';
 import 'core/storage/providers.dart';
@@ -22,6 +23,7 @@ void main() async {
   }
 
   final preferences = await AppPreferences.create();
+  await MediaCaches.clearLegacyOnce();
 
   runApp(
     ProviderScope(

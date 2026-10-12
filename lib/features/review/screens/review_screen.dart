@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/media/media_cache.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../gallery/widgets/media_tile.dart';
 import '../../events/models/event.dart';
@@ -252,15 +253,22 @@ class _ReviewTile extends StatelessWidget {
                         ),
                       );
                     },
-              child: preview != null
+              child: preview == null
+                  ? ColoredBox(
+                      color: Colors.black12,
+                      child: Icon(item.isVideo ? Icons.videocam : Icons.image),
+                    )
+                  : item.thumbnailUrl != null
                   ? GridPreviewImage(
                       mediaId: item.id,
                       url: preview,
-                      thumbnail: item.thumbnailUrl != null,
                     )
-                  : ColoredBox(
-                      color: Colors.black12,
-                      child: Icon(item.isVideo ? Icons.videocam : Icons.image),
+                  : CachedNetworkImage(
+                      imageUrl: preview,
+                      cacheManager: MediaCaches.fullPhotos,
+                      cacheKey: MediaCaches.fullKey(item.id),
+                      fit: BoxFit.cover,
+                      errorWidget: (_, _, _) => const SizedBox.shrink(),
                     ),
             ),
             if (item.isVideo)
@@ -376,7 +384,8 @@ class _ReviewEditorState extends ConsumerState<_ReviewEditor> {
       );
       await CachedNetworkImage.evictFromCache(
         widget.item.fullUrl ?? '',
-        cacheKey: 'media-${widget.item.id}-thumb',
+        cacheKey: MediaCaches.thumbKey(widget.item.id),
+        cacheManager: MediaCaches.thumbs,
       );
       ref.invalidate(pendingReviewProvider);
       if (mounted) {

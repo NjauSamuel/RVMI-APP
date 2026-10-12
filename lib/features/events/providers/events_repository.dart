@@ -85,6 +85,24 @@ class EventsRepository {
     );
     return EventComment.fromJson(Map<String, dynamic>.from(response.data!['data'] as Map));
   }
+
+  Future<void> delete(int id) async {
+    final client = ref.read(apiClientProvider);
+    await client.delete<void>('/events/$id');
+  }
+
+  Future<List<ChurchEvent>> listDeleted() async {
+    final client = ref.read(apiClientProvider);
+    final response = await client.get<Map<String, dynamic>>('/events/deleted');
+    return (response.data!['data'] as List)
+        .map((e) => ChurchEvent.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  Future<void> restore(int id) async {
+    final client = ref.read(apiClientProvider);
+    await client.post<void>('/events/$id/restore');
+  }
 }
 
 final eventsRepositoryProvider = Provider<EventsRepository>((ref) {
@@ -93,4 +111,8 @@ final eventsRepositoryProvider = Provider<EventsRepository>((ref) {
 
 final eventsListProvider = FutureProvider<List<ChurchEvent>>((ref) {
   return ref.read(eventsRepositoryProvider).list();
+});
+
+final deletedEventsProvider = FutureProvider<List<ChurchEvent>>((ref) {
+  return ref.read(eventsRepositoryProvider).listDeleted();
 });

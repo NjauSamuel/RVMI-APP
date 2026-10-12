@@ -27,6 +27,7 @@ class MediaItem {
     required this.durationSeconds,
     required this.tags,
     required this.createdAt,
+    this.isFavorite = false,
   });
 
   factory MediaItem.fromJson(Map<String, dynamic> json) => MediaItem(
@@ -46,6 +47,7 @@ class MediaItem {
         const [],
     createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
         DateTime.now(),
+    isFavorite: json['is_favorite'] as bool? ?? false,
   );
 
   final int id;
@@ -59,8 +61,26 @@ class MediaItem {
   final int? durationSeconds;
   final List<MediaTag> tags;
   final DateTime createdAt;
+  final bool isFavorite;
 
   bool get isVideo => type == 'video';
+
+  MediaItem copyWith({bool? isFavorite}) {
+    return MediaItem(
+      id: id,
+      type: type,
+      eventId: eventId,
+      thumbnailUrl: thumbnailUrl,
+      fullUrl: fullUrl,
+      blurhash: blurhash,
+      width: width,
+      height: height,
+      durationSeconds: durationSeconds,
+      tags: tags,
+      createdAt: createdAt,
+      isFavorite: isFavorite ?? this.isFavorite,
+    );
+  }
 
   double get aspectRatio {
     if (width != null && height != null && height! > 0) {

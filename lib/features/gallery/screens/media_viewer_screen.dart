@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:chewie/chewie.dart';
@@ -12,6 +13,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../../core/media/media_cache.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/session_controller.dart';
 import '../models/media_item.dart';
@@ -27,14 +29,14 @@ class MediaViewerArgs {
   final int index;
 }
 
-void openMediaViewer(
+Future<void> openMediaViewer(
   BuildContext context, {
   required List<MediaItem> items,
   required int index,
-}) {
+}) async {
   if (items.isEmpty) return;
   final safeIndex = index.clamp(0, items.length - 1);
-  context.push(
+  await context.push(
     '/media/${items[safeIndex].id}',
     extra: MediaViewerArgs(items: items, index: safeIndex),
   );
@@ -77,6 +79,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
   /// Full photos already on the phone. Sliding back paints these instead of
   /// downloading them again. The grid's thumbnail cache is separate.
   final Set<int> _fullReady = {};
+  final Map<int, bool> _favorite = {};
 
   /// +1 follows the next item, -1 follows the previous. Opening counts as +1.
   int _travel = 1;
@@ -167,6 +170,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
     if (!mounted || _items.isEmpty) return;
     final id = _items[_index].id;
     if (_fullReady.add(id)) setState(() {});
+    if (!_items[_index].isVideo) unawaited(MediaCaches.rememberFullPhoto(id));
     unawaited(_prefetchAhead());
   }
 
@@ -186,11 +190,16 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
     _prefetchingId = targetId;
     try {
       await precacheImage(
-        CachedNetworkImageProvider(url, cacheKey: 'media-$targetId-full'),
+        CachedNetworkImageProvider(
+          url,
+          cacheKey: MediaCaches.fullKey(targetId),
+          cacheManager: MediaCaches.fullPhotos,
+        ),
         context,
       );
       if (!mounted) return;
       setState(() => _fullReady.add(targetId));
+      unawaited(MediaCaches.rememberFullPhoto(targetId));
     } catch (_) {
       // The slide can still load this photo when it becomes current.
     } finally {
@@ -207,6 +216,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
     if (item?.fullUrl == null || _sharing) return;
 
     setState(() => _sharing = true);
+    String? path;
     try {
       final dio = Dio(
         BaseOptions(
@@ -216,7 +226,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
       );
       final dir = await getTemporaryDirectory();
       final extension = item!.isVideo ? 'mp4' : 'jpg';
-      final path = '${dir.path}/rvmi_media_${item.id}.$extension';
+      path = '${dir.path}/rvmi_media_${item.id}.$extension';
       await dio.download(item.fullUrl!, path);
       if (!mounted) return;
 
@@ -243,7 +253,34 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
         );
       }
     } finally {
+      if (path != null) {
+        final file = File(path);
+        if (await file.exists()) await file.delete();
+      }
       if (mounted) setState(() => _sharing = false);
+    }
+  }
+
+  bool _isFavorite(MediaItem item) => _favorite[item.id] ?? item.isFavorite;
+
+  Future<void> _toggleFavorite() async {
+    final item = _current;
+    if (item == null) return;
+    final next = !_isFavorite(item);
+    setState(() => _favorite[item.id] = next);
+    try {
+      final repo = ref.read(galleryRepositoryProvider);
+      if (next) {
+        await repo.favorite(item.id);
+      } else {
+        await repo.unfavorite(item.id);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _favorite[item.id] = !next);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update saved photos.')),
+      );
     }
   }
 
@@ -292,6 +329,12 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         actions: [
+          if (item != null)
+            IconButton(
+              tooltip: _isFavorite(item) ? 'Remove from saved' : 'Save',
+              icon: Icon(_isFavorite(item) ? Icons.bookmark : Icons.bookmark_border),
+              onPressed: _toggleFavorite,
+            ),
           if (item != null && canDelete)
             IconButton(
               icon: const Icon(Icons.delete_outline),
@@ -456,7 +499,8 @@ class _ViewerPageState extends ConsumerState<_ViewerPage> {
     _listenedId = item.id;
     final provider = CachedNetworkImageProvider(
       item.fullUrl!,
-      cacheKey: 'media-${item.id}-full',
+      cacheKey: MediaCaches.fullKey(item.id),
+      cacheManager: MediaCaches.fullPhotos,
     );
     _fullStream = provider.resolve(const ImageConfiguration());
     _fullListener = ImageStreamListener(
@@ -650,7 +694,8 @@ class _ViewerPageState extends ConsumerState<_ViewerPage> {
       return PhotoView(
         imageProvider: CachedNetworkImageProvider(
           item.fullUrl!,
-          cacheKey: 'media-${item.id}-full',
+          cacheKey: MediaCaches.fullKey(item.id),
+          cacheManager: MediaCaches.fullPhotos,
         ),
         backgroundDecoration: const BoxDecoration(color: Colors.black),
         minScale: PhotoViewComputedScale.contained,
@@ -735,7 +780,8 @@ Widget _cachedStandIn(MediaItem item, {bool playMark = false}) {
         if (url != null)
           CachedNetworkImage(
             imageUrl: url,
-            cacheKey: 'media-${item.id}-thumb',
+            cacheManager: MediaCaches.thumbs,
+            cacheKey: MediaCaches.thumbKey(item.id),
             fit: BoxFit.contain,
             fadeInDuration: Duration.zero,
             placeholder: (_, _) => const SizedBox.shrink(),

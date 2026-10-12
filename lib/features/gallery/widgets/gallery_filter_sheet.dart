@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/storage/providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../events/models/event.dart';
 import '../../events/providers/events_repository.dart';
@@ -57,8 +58,41 @@ class _GalleryFilterSheetState extends ConsumerState<GalleryFilterSheet> {
     };
     _tagId = initial.tagId;
     _eventId = initial.eventId;
-    _tags = ref.read(favoritesRepositoryProvider).searchTags();
+    _tags = _loadTags();
     _events = ref.read(eventsRepositoryProvider).listAll();
+  }
+
+  Future<List<Tag>> _loadTags() async {
+    final tags = await ref.read(favoritesRepositoryProvider).searchTags();
+    final prefs = ref.read(appPreferencesProvider);
+    final byId = {for (final tag in tags) tag.id: tag};
+    final ordered = <Tag>[];
+    var changed = prefs.tagOrder.length != tags.length;
+
+    for (final id in prefs.tagOrder) {
+      final tag = byId.remove(id);
+      if (tag != null) {
+        ordered.add(tag);
+      } else {
+        changed = true;
+      }
+    }
+
+    final fresh = byId.values.toList()..shuffle();
+    if (fresh.isNotEmpty) changed = true;
+    ordered.addAll(fresh);
+    if (changed) {
+      await prefs.setTagOrder([for (final tag in ordered) tag.id]);
+    }
+
+    final lead = prefs.leadingTagId;
+    if (lead != null) {
+      final index = ordered.indexWhere((tag) => tag.id == lead);
+      if (index > 0) {
+        ordered.insert(0, ordered.removeAt(index));
+      }
+    }
+    return ordered;
   }
 
   @override
@@ -263,6 +297,9 @@ class _GalleryFilterSheetState extends ConsumerState<GalleryFilterSheet> {
       _MediaKind.photos => 'image',
       _MediaKind.videos => 'video',
     };
+    if (_tagId != null) {
+      ref.read(appPreferencesProvider).setLeadingTagId(_tagId!);
+    }
 
     Navigator.of(context).pop(
       GalleryFeedFilter(

@@ -8,6 +8,7 @@ import '../../gallery/screens/media_viewer_screen.dart';
 import '../../gallery/widgets/media_grid.dart';
 import '../providers/events_repository.dart';
 import '../widgets/comment_thread.dart';
+import 'events_screen.dart';
 
 class EventDetailScreen extends ConsumerWidget {
   const EventDetailScreen({super.key, required this.eventId});
@@ -21,10 +22,26 @@ class EventDetailScreen extends ConsumerWidget {
     final feed = ref.watch(galleryFeedControllerProvider(filter));
     final session = ref.watch(sessionControllerProvider);
     final canUpload = session is SessionAuthenticated && session.session.canUpload;
+    final canManage = session is SessionAuthenticated && session.session.canManageEvents;
+    final event = eventAsync.asData?.value;
 
     return Scaffold(
       appBar: AppBar(
         title: eventAsync.maybeWhen(data: (e) => Text(e.title), orElse: () => const Text('Event')),
+        actions: [
+          if (canManage && event != null)
+            IconButton(
+              tooltip: 'Delete',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () async {
+                if (!await confirmDeleteEvent(context, event) || !context.mounted) return;
+                await ref.read(eventsRepositoryProvider).delete(event.id);
+                ref.invalidate(eventsListProvider);
+                ref.invalidate(deletedEventsProvider);
+                if (context.mounted) context.pop();
+              },
+            ),
+        ],
       ),
       floatingActionButton: canUpload
           ? FloatingActionButton.extended(

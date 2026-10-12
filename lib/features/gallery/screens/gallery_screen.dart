@@ -220,6 +220,11 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           ]
         : <Widget>[
             IconButton(
+              tooltip: 'Saved',
+              icon: const Icon(Icons.bookmark_border),
+              onPressed: () => context.push('/saved'),
+            ),
+            IconButton(
               tooltip: 'Filter',
               icon: Icon(
                 _filter.hasConstraints ? Icons.filter_alt : Icons.filter_alt_outlined,
@@ -363,31 +368,60 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     return '$tagged $missed';
   }
 
-  Future<String?> _askName() async {
-    final controller = TextEditingController();
-    final confirmed = await showDialog<bool>(
+  Future<String?> _askName() {
+    return showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Name this person'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(labelText: 'Full name'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Save')),
-        ],
-      ),
-    );
-    final name = controller.text.trim();
-    controller.dispose();
-    if (confirmed != true || name.isEmpty) return null;
-    return name;
+      builder: (context) => const _NamePersonDialog(),
+    ).then((name) {
+      if (name == null || name.isEmpty) return null;
+      return name;
+    });
   }
 
   void _message(String text) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+}
+
+class _NamePersonDialog extends StatefulWidget {
+  const _NamePersonDialog();
+
+  @override
+  State<_NamePersonDialog> createState() => _NamePersonDialogState();
+}
+
+class _NamePersonDialogState extends State<_NamePersonDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Name this person'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        textCapitalization: TextCapitalization.words,
+        decoration: const InputDecoration(labelText: 'Full name'),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+          child: const Text('Save'),
+        ),
+      ],
+    );
   }
 }

@@ -39,7 +39,12 @@ class _HomeShellScreenState extends ConsumerState<HomeShellScreen> {
     final index = _index.clamp(0, tabs.length - 1);
 
     return Scaffold(
-      body: tabs[index].screen,
+      body: IndexedStack(
+        index: index,
+        children: [
+          for (final tab in tabs) KeyedSubtree(key: ValueKey(tab.label), child: tab.screen),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) => setState(() => _index = i),

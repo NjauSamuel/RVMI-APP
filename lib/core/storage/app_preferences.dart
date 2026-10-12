@@ -6,6 +6,8 @@ class AppPreferences {
   AppPreferences(this._prefs);
 
   static const _themeModeKey = 'rvmi.theme_mode';
+  static const _tagOrderKey = 'rvmi.filter_tag_order';
+  static const _leadingTagKey = 'rvmi.filter_leading_tag';
 
   final SharedPreferences _prefs;
 
@@ -25,4 +27,19 @@ class AppPreferences {
   Future<void> setThemeMode(ThemeMode mode) {
     return _prefs.setString(_themeModeKey, mode.name);
   }
+
+  /// Stable per-phone tag order. New tags are shuffled in once.
+  List<int> get tagOrder {
+    final raw = _prefs.getStringList(_tagOrderKey);
+    if (raw == null) return const [];
+    return [for (final value in raw) ?int.tryParse(value)];
+  }
+
+  Future<void> setTagOrder(List<int> ids) {
+    return _prefs.setStringList(_tagOrderKey, [for (final id in ids) '$id']);
+  }
+
+  int? get leadingTagId => _prefs.getInt(_leadingTagKey);
+
+  Future<void> setLeadingTagId(int id) => _prefs.setInt(_leadingTagKey, id);
 }

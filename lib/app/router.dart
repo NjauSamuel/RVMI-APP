@@ -8,6 +8,7 @@ import '../features/auth/screens/splash_screen.dart';
 import '../features/dashboard/screens/home_shell_screen.dart';
 import '../features/events/screens/event_detail_screen.dart';
 import '../features/gallery/screens/media_viewer_screen.dart';
+import '../features/gallery/screens/saved_photos_screen.dart';
 import '../features/gallery/screens/tag_timeline_screen.dart';
 import '../features/inventory/screens/asset_form_screen.dart';
 import '../features/inventory/screens/inventory_screen.dart';
@@ -44,6 +45,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/', builder: (context, state) => const SessionGate()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(path: '/saved', builder: (context, state) => const SavedPhotosScreen()),
       GoRoute(
         path: '/media/:id',
         builder: (context, state) {

@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blurhash/flutter_blurhash.dart';
 
+import '../../../core/media/media_cache.dart';
 import '../models/media_item.dart';
 
 /// A single grid cell: paints the BlurHash immediately, then swaps in the
@@ -23,13 +24,9 @@ class MediaTile extends StatelessWidget {
   final bool selected;
   final bool selectionMode;
 
-  /// Photos fall back to the full image when the thumbnail is not ready yet,
-  /// matching the review screen. Videos only show their poster.
-  String? get _previewUrl {
-    if (item.thumbnailUrl != null) return item.thumbnailUrl;
-    if (!item.isVideo) return item.fullUrl;
-    return null;
-  }
+  /// Photos without a thumbnail stay on the BlurHash. The grid does not
+  /// download the full original.
+  String? get _previewUrl => item.thumbnailUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +48,6 @@ class MediaTile extends StatelessWidget {
               GridPreviewImage(
                 mediaId: item.id,
                 url: _previewUrl!,
-                thumbnail: item.thumbnailUrl != null,
               ),
             if (item.isVideo)
               const Align(
@@ -91,12 +87,10 @@ class GridPreviewImage extends StatelessWidget {
     super.key,
     required this.mediaId,
     required this.url,
-    required this.thumbnail,
   });
 
   final int mediaId;
   final String url;
-  final bool thumbnail;
 
   @override
   Widget build(BuildContext context) {
@@ -105,7 +99,8 @@ class GridPreviewImage extends StatelessWidget {
 
     return CachedNetworkImage(
       imageUrl: url,
-      cacheKey: 'media-$mediaId-${thumbnail ? 'thumb' : 'full'}',
+      cacheManager: MediaCaches.thumbs,
+      cacheKey: MediaCaches.thumbKey(mediaId),
       memCacheWidth: cachePixels,
       fit: BoxFit.cover,
       fadeInDuration: const Duration(milliseconds: 180),

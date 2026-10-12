@@ -4,6 +4,7 @@ import 'package:flutter_blurhash/flutter_blurhash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/media/media_cache.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/session_controller.dart';
 import '../models/event.dart';
@@ -35,16 +36,34 @@ class EventsScreen extends ConsumerWidget {
       ),
       body: events.when(
         data: (list) {
-          if (list.isEmpty) {
+          if (list.isEmpty && !canManageEvents) {
             return const Center(child: Text('No events yet.'));
           }
           return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(eventsListProvider),
+            onRefresh: () async {
+              ref.invalidate(eventsListProvider);
+              if (canManageEvents) ref.invalidate(deletedEventsProvider);
+            },
             child: ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(12),
-              itemCount: list.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (context, index) => _EventCard(event: list[index]),
+              itemCount: (list.isEmpty ? 1 : list.length) + (canManageEvents ? 1 : 0),
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                if (list.isEmpty && index == 0) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 48),
+                    child: Center(child: Text('No events yet.')),
+                  );
+                }
+                final eventIndex = list.isEmpty ? index - 1 : index;
+                if (eventIndex == list.length) return const _DeletedEvents();
+                final event = list[eventIndex];
+                return _EventCard(
+                  event: event,
+                  onDelete: canManageEvents ? () => _deleteEvent(context, ref, event) : null,
+                );
+              },
             ),
           );
         },
@@ -103,12 +122,20 @@ class EventsScreen extends ConsumerWidget {
       ref.invalidate(eventsListProvider);
     }
   }
+
+  Future<void> _deleteEvent(BuildContext context, WidgetRef ref, ChurchEvent event) async {
+    if (!await confirmDeleteEvent(context, event) || !context.mounted) return;
+    await ref.read(eventsRepositoryProvider).delete(event.id);
+    ref.invalidate(eventsListProvider);
+    ref.invalidate(deletedEventsProvider);
+  }
 }
 
 class _EventCard extends StatelessWidget {
-  const _EventCard({required this.event});
+  const _EventCard({required this.event, this.onDelete});
 
   final ChurchEvent event;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -139,6 +166,8 @@ class _EventCard extends StatelessWidget {
                       if (event.coverThumbnailUrl != null)
                         CachedNetworkImage(
                           imageUrl: event.coverThumbnailUrl!,
+                          cacheManager: MediaCaches.thumbs,
+                          cacheKey: 'event-cover-${event.id}',
                           fit: BoxFit.cover,
                         ),
                     ],
@@ -183,11 +212,82 @@ class _EventCard extends StatelessWidget {
                   ],
                 ),
               ),
+              if (onDelete != null)
+                IconButton(
+                  tooltip: 'Delete',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: onDelete,
+                ),
               const Icon(Icons.chevron_right),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+Future<bool> confirmDeleteEvent(BuildContext context, ChurchEvent event) async {
+  final count = event.mediaCount;
+  final photos = count == 1 ? '1 photo stays linked' : '$count photos stay linked';
+  final deleted = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('Delete ${event.title}?'),
+      content: Text(
+        'It can be restored. $photos and will show under this event again if you restore it.',
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+      ],
+    ),
+  );
+  return deleted == true;
+}
+
+class _DeletedEvents extends ConsumerWidget {
+  const _DeletedEvents();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final deleted = ref.watch(deletedEventsProvider);
+    return deleted.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, _) => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Text('Could not load deleted events.'),
+      ),
+      data: (events) {
+        if (events.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
+              child: Text('Deleted', style: Theme.of(context).textTheme.titleMedium),
+            ),
+            for (final event in events)
+              Card(
+                child: ListTile(
+                  title: Text(event.title),
+                  subtitle: Text('${event.mediaCount} item(s)'),
+                  trailing: TextButton(
+                    onPressed: () async {
+                      await ref.read(eventsRepositoryProvider).restore(event.id);
+                      ref.invalidate(eventsListProvider);
+                      ref.invalidate(deletedEventsProvider);
+                    },
+                    child: const Text('Restore'),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

@@ -72,6 +72,34 @@ class GalleryRepository {
     final client = ref.read(apiClientProvider);
     await client.delete<void>('/gallery/$id');
   }
+
+  Future<void> favorite(int id) async {
+    final client = ref.read(apiClientProvider);
+    await client.post<void>('/gallery/$id/favorite');
+  }
+
+  Future<void> unfavorite(int id) async {
+    final client = ref.read(apiClientProvider);
+    await client.delete<void>('/gallery/$id/favorite');
+  }
+
+  Future<GalleryPage> saved({int page = 1}) async {
+    final client = ref.read(apiClientProvider);
+    final response = await client.get<Map<String, dynamic>>(
+      '/me/saved-photos',
+      query: {'page': page},
+    );
+    final data = response.data!;
+    final items = (data['data'] as List)
+        .map((e) => MediaItem.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+
+    return GalleryPage(
+      items: items,
+      currentPage: data['current_page'] as int,
+      lastPage: data['last_page'] as int,
+    );
+  }
 }
 
 final galleryRepositoryProvider = Provider<GalleryRepository>((ref) {

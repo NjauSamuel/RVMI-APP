@@ -33,6 +33,7 @@ dependencies:
   # Media viewing / Telegram-style progressive loading.
   flutter_blurhash: ^0.9.1
   cached_network_image: ^3.4.1
+  flutter_cache_manager: ^3.4.1
   photo_view: ^0.15.0
   visibility_detector: ^0.4.0+2
 
