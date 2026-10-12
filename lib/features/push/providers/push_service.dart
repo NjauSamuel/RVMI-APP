@@ -7,10 +7,9 @@ import '../../../app/router.dart';
 import '../../auth/providers/auth_api.dart';
 import '../../auth/providers/session_controller.dart';
 
-/// Push is deliberately low-key: the only push members ever get is the
-/// batched per-event comment digest (see `notifications:dispatch-digest`
-/// on the server) - never a per-comment/per-like ping. Tapping one just
-/// opens that event's thread.
+/// Push is optional. The app asks for a token after login and opens the
+/// right screen when a notification is tapped. A missing Firebase setup
+/// leaves push off and does not block the rest of the app.
 class PushService {
   PushService(this.ref);
 
@@ -42,7 +41,9 @@ class PushService {
       }
 
       // App was backgrounded and brought back to the foreground via a tap.
-      _openedAppSub = FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageTap);
+      _openedAppSub = FirebaseMessaging.onMessageOpenedApp.listen(
+        _handleMessageTap,
+      );
     } catch (_) {
       // No Firebase config in this environment (e.g. local dev without
       // google-services.json yet) - push just silently stays off.
@@ -63,9 +64,16 @@ class PushService {
   void _handleMessageTap(RemoteMessage message) {
     final type = message.data['type'];
     final eventId = message.data['event_id'];
+    final router = ref.read(routerProvider);
 
-    if (type == 'event_comment_digest' && eventId != null) {
-      ref.read(routerProvider).push('/events/$eventId');
+    if ((type == 'event_comment' || type == 'event_comment_digest') &&
+        eventId != null) {
+      router.push('/events/$eventId');
+      return;
+    }
+
+    if (type == 'upload_batch' || type == 'media_approved') {
+      router.go('/');
     }
   }
 

@@ -97,6 +97,14 @@ class _UploadPickerScreenState extends ConsumerState<UploadPickerScreen> {
     final repo = ref.read(uploadRepositoryProvider);
     final prepared = <_PickedFile>[];
     var preparing = true;
+    var completed = 0;
+    var announced = false;
+
+    Future<void> announceFinished() async {
+      if (announced || completed < 1) return;
+      announced = true;
+      await repo.announce(completed, eventId: widget.eventId);
+    }
 
     try {
       final videoCount = _picked
@@ -194,7 +202,10 @@ class _UploadPickerScreenState extends ConsumerState<UploadPickerScreen> {
         );
 
         if (mounted) setState(() => _uploadedCount++);
+        completed++;
       }
+
+      await announceFinished();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -207,6 +218,7 @@ class _UploadPickerScreenState extends ConsumerState<UploadPickerScreen> {
         context.pop();
       }
     } catch (_) {
+      await announceFinished();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

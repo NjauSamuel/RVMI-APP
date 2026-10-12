@@ -28,7 +28,8 @@ class UploadRepository {
     final payload = <Map<String, dynamic>>[];
     for (var i = 0; i < files.length; i++) {
       final file = files[i];
-      final contentType = lookupMimeType(file.path) ?? 'application/octet-stream';
+      final contentType =
+          lookupMimeType(file.path) ?? 'application/octet-stream';
       payload.add({
         'filename': file.uri.pathSegments.last,
         'content_type': contentType,
@@ -39,18 +40,16 @@ class UploadRepository {
 
     final response = await client.post<Map<String, dynamic>>(
       '/uploads/presign',
-      data: {
-        'event_id': eventId,
-        'files': payload,
-        'taken_at': ?takenAt,
-      },
+      data: {'event_id': eventId, 'files': payload, 'taken_at': ?takenAt},
     );
 
     return (response.data!['data'] as List)
-        .map((e) => PresignedUpload(
-              mediaItemId: e['media_item_id'] as int,
-              uploadUrl: e['upload_url'] as String,
-            ))
+        .map(
+          (e) => PresignedUpload(
+            mediaItemId: e['media_item_id'] as int,
+            uploadUrl: e['upload_url'] as String,
+          ),
+        )
         .toList();
   }
 
@@ -77,6 +76,19 @@ class UploadRepository {
         'poster_frame_base64': posterFrameBase64,
       },
     );
+  }
+
+  /// One notice for the whole selection. Failure is ignored; the files
+  /// are already uploaded.
+  Future<void> announce(int count, {int? eventId}) async {
+    if (count < 1) return;
+    try {
+      final client = ref.read(apiClientProvider);
+      await client.post<void>(
+        '/uploads/announced',
+        data: {'count': count, 'event_id': eventId},
+      );
+    } catch (_) {}
   }
 }
 
