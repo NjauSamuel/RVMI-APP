@@ -21,6 +21,7 @@ class UploadRepository {
     required List<File> files,
     required List<String> types,
     int? eventId,
+    String? takenAt,
   }) async {
     final client = ref.read(apiClientProvider);
 
@@ -38,7 +39,11 @@ class UploadRepository {
 
     final response = await client.post<Map<String, dynamic>>(
       '/uploads/presign',
-      data: {'event_id': eventId, 'files': payload},
+      data: {
+        'event_id': eventId,
+        'files': payload,
+        'taken_at': ?takenAt,
+      },
     );
 
     return (response.data!['data'] as List)

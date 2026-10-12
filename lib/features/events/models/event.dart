@@ -8,6 +8,7 @@ class ChurchEvent {
     required this.mediaCount,
     required this.coverThumbnailUrl,
     required this.coverBlurhash,
+    this.isFavorite = false,
   });
 
   factory ChurchEvent.fromJson(Map<String, dynamic> json) => ChurchEvent(
@@ -19,6 +20,7 @@ class ChurchEvent {
     mediaCount: (json['media_count'] as num?)?.toInt() ?? 0,
     coverThumbnailUrl: json['cover_thumbnail_url'] as String?,
     coverBlurhash: json['cover_blurhash'] as String?,
+    isFavorite: json['is_favorite'] as bool? ?? false,
   );
 
   final int id;
@@ -29,6 +31,7 @@ class ChurchEvent {
   final int mediaCount;
   final String? coverThumbnailUrl;
   final String? coverBlurhash;
+  final bool isFavorite;
 
   bool get isPrivate => visibility == 'private';
 }

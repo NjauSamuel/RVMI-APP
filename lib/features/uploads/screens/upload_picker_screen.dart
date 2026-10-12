@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../gallery/widgets/photo_date_sheet.dart';
 import '../providers/upload_repository.dart';
 import '../upload_prepare.dart';
 
@@ -37,6 +39,7 @@ class UploadPickerScreen extends ConsumerStatefulWidget {
 
 class _UploadPickerScreenState extends ConsumerState<UploadPickerScreen> {
   final List<_PickedFile> _picked = [];
+  DateTime? _photoDate;
   bool _uploading = false;
   int _uploadedCount = 0;
   String? _status;
@@ -133,6 +136,7 @@ class _UploadPickerScreenState extends ConsumerState<UploadPickerScreen> {
         files: prepared.map((p) => p.file).toList(),
         types: prepared.map((p) => p.kind == _PickedKind.video ? 'video' : 'image').toList(),
         eventId: widget.eventId,
+        takenAt: _photoDate == null ? null : DateFormat('yyyy-MM-dd').format(_photoDate!),
       );
 
       for (var i = 0; i < presigned.length; i++) {
@@ -274,30 +278,51 @@ class _UploadPickerScreenState extends ConsumerState<UploadPickerScreen> {
           SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
                 children: [
                   if (_picked.isNotEmpty)
-                    OutlinedButton.icon(
-                      onPressed: _uploading ? null : _pickMedia,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add more'),
-                    ),
-                  if (_picked.isNotEmpty) const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: (_picked.isEmpty || _uploading) ? null : _upload,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.brand600,
-                        foregroundColor: Colors.white,
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.event_outlined),
+                      title: Text(
+                        _photoDate == null ? 'Upload date' : DateFormat.yMMMd().format(_photoDate!),
                       ),
-                      child: Text(
-                        _status ??
-                            (_uploading
-                                ? 'Uploading $_uploadedCount/${_picked.length}...'
-                                : 'Upload ${_picked.length} item(s)'),
-                      ),
+                      subtitle: const Text('Photo date'),
+                      enabled: !_uploading,
+                      onTap: () async {
+                        final choice = await showPhotoDateSheet(context, current: _photoDate);
+                        if (choice == null || !mounted) return;
+                        setState(() {
+                          _photoDate = choice.useUploadDate ? null : choice.day;
+                        });
+                      },
                     ),
+                  Row(
+                    children: [
+                      if (_picked.isNotEmpty)
+                        OutlinedButton.icon(
+                          onPressed: _uploading ? null : _pickMedia,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add more'),
+                        ),
+                      if (_picked.isNotEmpty) const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: (_picked.isEmpty || _uploading) ? null : _upload,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.brand600,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: Text(
+                            _status ??
+                                (_uploading
+                                    ? 'Uploading $_uploadedCount/${_picked.length}...'
+                                    : 'Upload ${_picked.length} item(s)'),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

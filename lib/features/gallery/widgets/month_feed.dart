@@ -12,14 +12,15 @@ class UploadMonthSection {
   final List<MediaItem> items = [];
 }
 
-/// Groups a newest-first feed by upload month. A month that continues onto
+/// Groups a newest-first feed by photo month. A chosen date wins; otherwise
+/// the month is when the file was uploaded. A month that continues onto
 /// the next page keeps a single header.
 List<UploadMonthSection> groupByUploadMonth(List<MediaItem> items) {
   final sections = <UploadMonthSection>[];
   final format = DateFormat('MMMM y');
 
   for (final item in items) {
-    final label = format.format(item.createdAt.toLocal());
+    final label = format.format(item.displayAt.toLocal());
     if (sections.isEmpty || sections.last.label != label) {
       sections.add(UploadMonthSection(label));
     }
@@ -41,6 +42,7 @@ class MonthGroupedFeed extends StatefulWidget {
     this.onLongPress,
     this.selectedIds = const {},
     this.selecting = false,
+    this.selectVideos = false,
     this.loadingMore = false,
   });
 
@@ -51,6 +53,7 @@ class MonthGroupedFeed extends StatefulWidget {
   final void Function(MediaItem item)? onLongPress;
   final Set<int> selectedIds;
   final bool selecting;
+  final bool selectVideos;
   final bool loadingMore;
 
   @override
@@ -118,6 +121,7 @@ class _MonthGroupedFeedState extends State<MonthGroupedFeed> {
                   item: item,
                   selected: widget.selectedIds.contains(item.id),
                   selectionMode: widget.selecting,
+                  selectable: !item.isVideo || widget.selectVideos,
                   onTap: () {
                     if (widget.selecting) {
                       widget.onToggle?.call(item);

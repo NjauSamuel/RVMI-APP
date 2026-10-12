@@ -16,6 +16,7 @@ class MediaTile extends StatelessWidget {
     this.onLongPress,
     this.selected = false,
     this.selectionMode = false,
+    this.selectable = true,
   });
 
   final MediaItem item;
@@ -23,6 +24,7 @@ class MediaTile extends StatelessWidget {
   final VoidCallback? onLongPress;
   final bool selected;
   final bool selectionMode;
+  final bool selectable;
 
   /// Photos without a thumbnail stay on the BlurHash. The grid does not
   /// download the full original.
@@ -30,7 +32,7 @@ class MediaTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final showMark = selectionMode && !item.isVideo;
+    final showMark = selectionMode && selectable;
 
     return GestureDetector(
       onTap: onTap,

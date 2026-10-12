@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/gallery_repository.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../favorites/models/saved_filter.dart';
+import '../../favorites/widgets/saved_filter_sheet.dart';
 import '../models/media_item.dart';
+import '../providers/gallery_repository.dart';
 import '../widgets/media_grid.dart';
 import 'media_viewer_screen.dart';
 
@@ -19,6 +22,7 @@ class _SavedPhotosScreenState extends ConsumerState<SavedPhotosScreen> {
   var _lastPage = 1;
   var _loading = true;
   var _loadingMore = false;
+  var _filter = const SavedFilter();
   String? _error;
 
   @override
@@ -38,7 +42,10 @@ class _SavedPhotosScreenState extends ConsumerState<SavedPhotosScreen> {
       }
     });
     try {
-      final result = await ref.read(galleryRepositoryProvider).saved(page: refresh ? 1 : _page);
+      final result = await ref.read(galleryRepositoryProvider).saved(
+        page: refresh ? 1 : _page,
+        filter: _filter,
+      );
       if (!mounted) return;
       setState(() {
         if (refresh) {
@@ -66,7 +73,19 @@ class _SavedPhotosScreenState extends ConsumerState<SavedPhotosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Saved')),
+      appBar: AppBar(
+        title: const Text('Saved'),
+        actions: [
+          IconButton(
+            tooltip: 'Filter',
+            icon: Icon(
+              _filter.active ? Icons.filter_alt : Icons.filter_alt_outlined,
+              color: _filter.active ? AppColors.brand500 : null,
+            ),
+            onPressed: _openFilters,
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () => _load(refresh: true),
         child: _buildBody(),
@@ -90,9 +109,11 @@ class _SavedPhotosScreenState extends ConsumerState<SavedPhotosScreen> {
     if (_items.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          SizedBox(height: 120),
-          Center(child: Text('No saved photos yet.')),
+        children: [
+          const SizedBox(height: 120),
+          Center(
+            child: Text(_filter.active ? 'Nothing saved matches this filter.' : 'No saved photos yet.'),
+          ),
         ],
       );
     }
@@ -106,5 +127,21 @@ class _SavedPhotosScreenState extends ConsumerState<SavedPhotosScreen> {
         if (mounted) await _load(refresh: true);
       },
     );
+  }
+
+  Future<void> _openFilters() async {
+    final messenger = ScaffoldMessenger.of(context);
+    SavedFacets facets;
+    try {
+      facets = await ref.read(galleryRepositoryProvider).savedFilters();
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(content: Text('Could not load filters.')));
+      return;
+    }
+    if (!mounted) return;
+    final next = await showSavedFilterSheet(context, facets: facets, initial: _filter, photos: true);
+    if (next == null || !mounted) return;
+    setState(() => _filter = next);
+    await _load(refresh: true);
   }
 }

@@ -71,6 +71,12 @@ class PeopleRepository {
     return TagSelectedResult(tagged: tagged, unmatched: unmatched);
   }
 
+  Future<PersonReferences> references(int personId) async {
+    final client = ref.read(apiClientProvider);
+    final response = await client.get<Map<String, dynamic>>('/people/$personId/references');
+    return PersonReferences.fromJson(Map<String, dynamic>.from(response.data!['data'] as Map));
+  }
+
   /// Uploads 1 to 5 reference photos and replaces this person's indexed faces.
   Future<Person> replaceReferencePhotos(Person person, List<File> files) async {
     if (files.isEmpty || files.length > 5) {
@@ -111,4 +117,8 @@ final peopleRepositoryProvider = Provider<PeopleRepository>((ref) {
 
 final peopleListProvider = FutureProvider.autoDispose<List<Person>>((ref) {
   return ref.read(peopleRepositoryProvider).list();
+});
+
+final personReferencesProvider = FutureProvider.autoDispose.family<PersonReferences, int>((ref, personId) {
+  return ref.read(peopleRepositoryProvider).references(personId);
 });

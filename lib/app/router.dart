@@ -7,12 +7,14 @@ import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/splash_screen.dart';
 import '../features/dashboard/screens/home_shell_screen.dart';
 import '../features/events/screens/event_detail_screen.dart';
+import '../features/events/screens/saved_events_screen.dart';
 import '../features/gallery/screens/media_viewer_screen.dart';
 import '../features/gallery/screens/saved_photos_screen.dart';
 import '../features/gallery/screens/tag_timeline_screen.dart';
 import '../features/inventory/screens/asset_form_screen.dart';
 import '../features/inventory/screens/inventory_screen.dart';
 import '../features/people/screens/people_screen.dart';
+import '../features/people/screens/person_detail_screen.dart';
 import '../features/review/screens/review_screen.dart';
 import '../features/roles/screens/roles_screen.dart';
 import '../features/roles/screens/users_screen.dart';
@@ -46,6 +48,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/', builder: (context, state) => const SessionGate()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(path: '/saved', builder: (context, state) => const SavedPhotosScreen()),
+      GoRoute(path: '/saved-events', builder: (context, state) => const SavedEventsScreen()),
       GoRoute(
         path: '/media/:id',
         builder: (context, state) {
@@ -90,6 +93,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: '/people', builder: (context, state) => const PeopleScreen()),
+      GoRoute(
+        path: '/people/:id',
+        builder: (context, state) => PersonDetailScreen(personId: int.parse(state.pathParameters['id']!)),
+      ),
       GoRoute(path: '/admin/users', builder: (context, state) => const UsersScreen()),
       GoRoute(path: '/admin/roles', builder: (context, state) => const RolesScreen()),
     ],

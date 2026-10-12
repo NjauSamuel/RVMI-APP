@@ -10,6 +10,8 @@ class ReviewItem {
     required this.visibility,
     required this.suggestedTags,
     required this.selectedTagIds,
+    required this.createdAt,
+    this.takenAt,
   });
 
   factory ReviewItem.fromJson(Map<String, dynamic> json) {
@@ -28,6 +30,8 @@ class ReviewItem {
       visibility: json['visibility_override'] as String? ?? 'public',
       suggestedTags: tags,
       selectedTagIds: tags.where((t) => t.selected).map((t) => t.id).toSet(),
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
+      takenAt: DateTime.tryParse(json['taken_at']?.toString() ?? ''),
     );
   }
 
@@ -45,6 +49,8 @@ class ReviewItem {
   String visibility;
   List<ReviewTag> suggestedTags;
   Set<int> selectedTagIds;
+  final DateTime createdAt;
+  final DateTime? takenAt;
 }
 
 class ReviewTag {

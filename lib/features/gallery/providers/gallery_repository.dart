@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/providers.dart';
+import '../../favorites/models/saved_filter.dart';
 import '../models/media_item.dart';
 
 class GalleryPage {
@@ -83,11 +84,11 @@ class GalleryRepository {
     await client.delete<void>('/gallery/$id/favorite');
   }
 
-  Future<GalleryPage> saved({int page = 1}) async {
+  Future<GalleryPage> saved({int page = 1, SavedFilter filter = const SavedFilter()}) async {
     final client = ref.read(apiClientProvider);
     final response = await client.get<Map<String, dynamic>>(
       '/me/saved-photos',
-      query: {'page': page},
+      query: {'page': page, ...filter.toQuery()},
     );
     final data = response.data!;
     final items = (data['data'] as List)
@@ -99,6 +100,12 @@ class GalleryRepository {
       currentPage: data['current_page'] as int,
       lastPage: data['last_page'] as int,
     );
+  }
+
+  Future<SavedFacets> savedFilters() async {
+    final client = ref.read(apiClientProvider);
+    final response = await client.get<Map<String, dynamic>>('/me/saved-photos/filters');
+    return SavedFacets.fromJson(Map<String, dynamic>.from(response.data!['data'] as Map));
   }
 }
 

@@ -22,28 +22,46 @@ class ReviewRepository {
     String? visibility,
     List<int>? tagIds,
     String? posterFrameBase64,
+    DateTime? takenAt,
+    bool setTakenAt = false,
   }) async {
     final client = ref.read(apiClientProvider);
     await client.patch<void>(
       '/review/$mediaItemId',
       data: {
-        if (eventId != null) 'event_id': eventId,
-        if (visibility != null) 'visibility_override': visibility,
-        if (tagIds != null) 'tag_ids': tagIds,
-        if (posterFrameBase64 != null) 'poster_frame_base64': posterFrameBase64,
+        'event_id': ?eventId,
+        'visibility_override': ?visibility,
+        'tag_ids': ?tagIds,
+        'poster_frame_base64': ?posterFrameBase64,
+        if (setTakenAt) 'taken_at': _photoDate(takenAt),
       },
     );
   }
 
-  /// Applies one event or visibility change to each id through the existing update.
+  /// Applies one event, visibility, or photo-date change to each id.
   Future<void> updateEach(
     List<int> mediaItemIds, {
     int? eventId,
     String? visibility,
+    DateTime? takenAt,
+    bool setTakenAt = false,
   }) async {
     for (final id in mediaItemIds) {
-      await update(id, eventId: eventId, visibility: visibility);
+      await update(
+        id,
+        eventId: eventId,
+        visibility: visibility,
+        takenAt: takenAt,
+        setTakenAt: setTakenAt,
+      );
     }
+  }
+
+  String? _photoDate(DateTime? day) {
+    if (day == null) return null;
+    return '${day.year.toString().padLeft(4, '0')}-'
+        '${day.month.toString().padLeft(2, '0')}-'
+        '${day.day.toString().padLeft(2, '0')}';
   }
 
   Future<void> approve(int mediaItemId) async {

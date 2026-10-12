@@ -161,6 +161,12 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
 
   MediaItem? get _current => _items.isEmpty ? null : _items[_index];
 
+  void _replaceItem(MediaItem fresh) {
+    final index = _items.indexWhere((item) => item.id == fresh.id);
+    if (index < 0) return;
+    setState(() => _items[index] = fresh);
+  }
+
   void _onPageChanged(int index) {
     if (index != _index) _travel = index > _index ? 1 : -1;
     setState(() => _index = index);
@@ -403,6 +409,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
                 current: index == _index,
                 showFull: index == _index || _fullReady.contains(item.id),
                 onFullReady: _onFullReady,
+                onItemRefreshed: _replaceItem,
                 onZoomed: (zoomed) {
                   if (_zoomed != zoomed) setState(() => _zoomed = zoomed);
                 },
@@ -422,6 +429,7 @@ class _ViewerPage extends ConsumerStatefulWidget {
     required this.current,
     required this.showFull,
     required this.onFullReady,
+    required this.onItemRefreshed,
     required this.onZoomed,
   });
 
@@ -429,6 +437,7 @@ class _ViewerPage extends ConsumerStatefulWidget {
   final bool current;
   final bool showFull;
   final VoidCallback onFullReady;
+  final ValueChanged<MediaItem> onItemRefreshed;
   final ValueChanged<bool> onZoomed;
 
   @override
@@ -452,6 +461,12 @@ class _ViewerPageState extends ConsumerState<_ViewerPage> {
   ImageStreamListener? _fullListener;
   int? _listenedId;
   bool _reported = false;
+
+  /// 0 is the link from the gallery list. 1 is the fresh link fetched after
+  /// that request failed, usually because the signed URL had expired.
+  var _generation = 0;
+  var _recovering = false;
+  var _gaveUp = false;
 
   @override
   void initState() {
@@ -503,9 +518,10 @@ class _ViewerPageState extends ConsumerState<_ViewerPage> {
       cacheManager: MediaCaches.fullPhotos,
     );
     _fullStream = provider.resolve(const ImageConfiguration());
+    final generation = _generation;
     _fullListener = ImageStreamListener(
       (_, _) => _reportReady(),
-      onError: (_, _) {},
+      onError: (_, _) => _onMediaError(generation),
     );
     _fullStream!.addListener(_fullListener!);
   }
@@ -610,12 +626,7 @@ class _ViewerPageState extends ConsumerState<_ViewerPage> {
       });
     } catch (_) {
       await controller.dispose();
-      if (mounted && ticket == _ticket) {
-        setState(() {
-          _error = 'Could not play this video.';
-          _opening = false;
-        });
-      }
+      if (mounted && ticket == _ticket) _onMediaError(_generation);
     }
   }
 
@@ -681,17 +692,108 @@ class _ViewerPageState extends ConsumerState<_ViewerPage> {
     video.play();
   }
 
+  void _onMediaError(int generation) {
+    if (!mounted || generation != _generation || _recovering || _gaveUp) return;
+    if (_generation > 0) {
+      setState(() {
+        _gaveUp = true;
+        _opening = false;
+        if (widget.item.isVideo) _error = 'Could not play this video.';
+      });
+      return;
+    }
+    _recovering = true;
+    unawaited(_recoverLink());
+  }
+
+  /// The gallery list holds a short-lived view link. Ask for a new one and
+  /// load that, instead of leaving the failed picture on screen.
+  Future<void> _recoverLink() async {
+    final item = widget.item;
+    try {
+      final url = item.fullUrl;
+      if (url != null && url.isNotEmpty) {
+        await CachedNetworkImageProvider(
+          url,
+          cacheKey: MediaCaches.fullKey(item.id),
+          cacheManager: MediaCaches.fullPhotos,
+        ).evict();
+      }
+      try {
+        await MediaCaches.fullPhotos.removeFile(MediaCaches.fullKey(item.id));
+      } catch (_) {}
+      final fresh = await ref.read(galleryRepositoryProvider).show(item.id);
+      if (!mounted) return;
+      if (fresh.fullUrl == null || fresh.fullUrl!.isEmpty) {
+        setState(() {
+          _recovering = false;
+          _gaveUp = true;
+          _opening = false;
+          if (item.isVideo) _error = 'Could not play this video.';
+        });
+        return;
+      }
+      widget.onItemRefreshed(fresh);
+      if (item.isVideo) {
+        _ticket++;
+        _releasePlayer();
+      }
+      setState(() {
+        _recovering = false;
+        _generation = 1;
+        _gaveUp = false;
+        _error = null;
+        _opening = false;
+        _reported = false;
+      });
+      _stopWatch();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _recovering = false;
+        _gaveUp = true;
+        _opening = false;
+        if (widget.item.isVideo) _error = 'Could not play this video.';
+      });
+    }
+  }
+
+  Widget _waitingPhoto(MediaItem item) {
+    return SizedBox.expand(
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(child: _cachedStandIn(item)),
+          if (widget.current)
+            const SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
     if (!item.isVideo) {
       if (!widget.showFull || item.fullUrl == null) {
+        if (item.fullUrl == null && !_gaveUp) {
+          final generation = _generation;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _onMediaError(generation);
+          });
+          return _waitingPhoto(item);
+        }
         if (item.fullUrl == null && item.thumbnailUrl == null) {
           return const Center(child: Text('Could not load this photo.', style: TextStyle(color: Colors.white)));
         }
         return _cachedStandIn(item);
       }
       return PhotoView(
+        key: ValueKey('${item.id}-$_generation'),
         imageProvider: CachedNetworkImageProvider(
           item.fullUrl!,
           cacheKey: MediaCaches.fullKey(item.id),
@@ -701,23 +803,19 @@ class _ViewerPageState extends ConsumerState<_ViewerPage> {
         minScale: PhotoViewComputedScale.contained,
         maxScale: PhotoViewComputedScale.covered * 3,
         gaplessPlayback: true,
-        loadingBuilder: (context, event) => SizedBox.expand(
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Positioned.fill(child: _cachedStandIn(item)),
-              if (widget.current)
-                const SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: CircularProgressIndicator(strokeWidth: 3),
-                ),
-            ],
-          ),
-        ),
-        errorBuilder: (context, error, stackTrace) => const Center(
-          child: Text('Could not load this photo.', style: TextStyle(color: Colors.white)),
-        ),
+        loadingBuilder: (context, event) => _waitingPhoto(item),
+        errorBuilder: (context, error, stackTrace) {
+          final generation = _generation;
+          if (!_gaveUp) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _onMediaError(generation);
+            });
+            return _waitingPhoto(item);
+          }
+          return const Center(
+            child: Text('Could not load this photo.', style: TextStyle(color: Colors.white)),
+          );
+        },
         scaleStateChangedCallback: widget.current
             ? (state) {
                 final zoomed = state == PhotoViewScaleState.zoomedIn || state == PhotoViewScaleState.covering;

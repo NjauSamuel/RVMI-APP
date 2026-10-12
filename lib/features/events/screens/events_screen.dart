@@ -27,6 +27,11 @@ class EventsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Events'),
         actions: [
+          IconButton(
+            tooltip: 'Saved events',
+            icon: const Icon(Icons.bookmark_border),
+            onPressed: () => context.push('/saved-events'),
+          ),
           if (canManageEvents)
             IconButton(
               icon: const Icon(Icons.add),
@@ -218,6 +223,7 @@ class _EventCard extends StatelessWidget {
                   icon: const Icon(Icons.delete_outline),
                   onPressed: onDelete,
                 ),
+              SaveEventButton(event: event),
               const Icon(Icons.chevron_right),
             ],
           ),
@@ -288,6 +294,68 @@ class _DeletedEvents extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class SaveEventButton extends ConsumerStatefulWidget {
+  const SaveEventButton({super.key, required this.event, this.onChanged});
+
+  final ChurchEvent event;
+  final VoidCallback? onChanged;
+
+  @override
+  ConsumerState<SaveEventButton> createState() => _SaveEventButtonState();
+}
+
+class _SaveEventButtonState extends ConsumerState<SaveEventButton> {
+  late bool _saved;
+  var _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _saved = widget.event.isFavorite;
+  }
+
+  @override
+  void didUpdateWidget(SaveEventButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.event.id != widget.event.id || oldWidget.event.isFavorite != widget.event.isFavorite) {
+      _saved = widget.event.isFavorite;
+    }
+  }
+
+  Future<void> _toggle() async {
+    if (_busy) return;
+    final next = !_saved;
+    setState(() {
+      _saved = next;
+      _busy = true;
+    });
+    try {
+      final repo = ref.read(eventsRepositoryProvider);
+      if (next) {
+        await repo.favorite(widget.event.id);
+      } else {
+        await repo.unfavorite(widget.event.id);
+      }
+      ref.invalidate(eventsListProvider);
+      ref.invalidate(savedEventsProvider);
+      widget.onChanged?.call();
+    } catch (_) {
+      if (mounted) setState(() => _saved = !next);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: _saved ? 'Remove from saved events' : 'Save event',
+      icon: Icon(_saved ? Icons.bookmark : Icons.bookmark_border),
+      onPressed: _busy ? null : _toggle,
     );
   }
 }

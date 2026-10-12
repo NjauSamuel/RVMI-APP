@@ -28,3 +28,31 @@ class Person {
     return 'No reference photos yet';
   }
 }
+
+class PersonReferencePhoto {
+  const PersonReferencePhoto({required this.url, required this.fullUrl});
+
+  factory PersonReferencePhoto.fromJson(Map<String, dynamic> json) => PersonReferencePhoto(
+    url: json['url'] as String,
+    fullUrl: json['full_url'] as String? ?? json['url'] as String,
+  );
+
+  final String url;
+  final String fullUrl;
+}
+
+class PersonReferences {
+  const PersonReferences({required this.id, required this.name, required this.photos});
+
+  factory PersonReferences.fromJson(Map<String, dynamic> json) => PersonReferences(
+    id: json['id'] as int,
+    name: json['name'] as String,
+    photos: (json['photos'] as List? ?? [])
+        .map((photo) => PersonReferencePhoto.fromJson(Map<String, dynamic>.from(photo as Map)))
+        .toList(),
+  );
+
+  final int id;
+  final String name;
+  final List<PersonReferencePhoto> photos;
+}

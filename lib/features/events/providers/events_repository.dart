@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/providers.dart';
+import '../../favorites/models/saved_filter.dart';
 import '../models/event.dart';
 
 class EventsRepository {
@@ -103,6 +104,33 @@ class EventsRepository {
     final client = ref.read(apiClientProvider);
     await client.post<void>('/events/$id/restore');
   }
+
+  Future<void> favorite(int id) async {
+    final client = ref.read(apiClientProvider);
+    await client.post<void>('/events/$id/favorite');
+  }
+
+  Future<void> unfavorite(int id) async {
+    final client = ref.read(apiClientProvider);
+    await client.delete<void>('/events/$id/favorite');
+  }
+
+  Future<List<ChurchEvent>> saved({SavedFilter filter = const SavedFilter()}) async {
+    final client = ref.read(apiClientProvider);
+    final response = await client.get<Map<String, dynamic>>(
+      '/me/saved-events',
+      query: filter.toQuery(),
+    );
+    return (response.data!['data'] as List)
+        .map((e) => ChurchEvent.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  Future<SavedFacets> savedFilters() async {
+    final client = ref.read(apiClientProvider);
+    final response = await client.get<Map<String, dynamic>>('/me/saved-events/filters');
+    return SavedFacets.fromJson(Map<String, dynamic>.from(response.data!['data'] as Map));
+  }
 }
 
 final eventsRepositoryProvider = Provider<EventsRepository>((ref) {
@@ -115,4 +143,8 @@ final eventsListProvider = FutureProvider<List<ChurchEvent>>((ref) {
 
 final deletedEventsProvider = FutureProvider<List<ChurchEvent>>((ref) {
   return ref.read(eventsRepositoryProvider).listDeleted();
+});
+
+final savedEventsProvider = FutureProvider<List<ChurchEvent>>((ref) {
+  return ref.read(eventsRepositoryProvider).saved();
 });

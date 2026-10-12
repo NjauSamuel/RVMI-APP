@@ -6,14 +6,16 @@ import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/session_controller.dart';
 import '../../favorites/widgets/for_you_rail.dart';
 import '../../people/providers/people_repository.dart';
+import '../../review/providers/review_repository.dart';
 import '../models/media_item.dart';
 import '../providers/gallery_feed_controller.dart';
 import '../widgets/gallery_filter_sheet.dart';
 import '../widgets/month_feed.dart';
+import '../widgets/photo_date_sheet.dart';
 import 'media_viewer_screen.dart';
 
 /// The home timeline: everything the member is allowed to see, newest
-/// first, grouped by upload month.
+/// first, grouped by photo month.
 class GalleryScreen extends ConsumerStatefulWidget {
   const GalleryScreen({super.key});
 
@@ -41,6 +43,8 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     final session = ref.watch(sessionControllerProvider);
     final canUpload = session is SessionAuthenticated && session.session.canUpload;
     final canManagePeople = session is SessionAuthenticated && session.session.canManagePeople;
+    final canApprove = session is SessionAuthenticated && session.session.canApprove;
+    final canSelect = canManagePeople || canApprove;
     final anyoneTrained = canManagePeople &&
         ref.watch(peopleListProvider).maybeWhen(
           data: (people) => people.any(
@@ -80,13 +84,15 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                     _headerBar(
                       canUpload: canUpload,
                       anyoneTrained: anyoneTrained,
+                      canApprove: canApprove,
+                      canManagePeople: canManagePeople,
                     ),
                     const ForYouRail(),
                   ],
                 ),
               ),
             ),
-            if (_selecting && _selected.length > 5)
+            if (_selecting && canManagePeople && _selected.length > 5)
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
                 child: DecoratedBox(
@@ -133,6 +139,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                               items: feed.items,
                               loadingMore: feed.loadingMore,
                               selecting: _selecting,
+                              selectVideos: canApprove,
                               selectedIds: _selected,
                               onNearEnd: () =>
                                   ref.read(galleryFeedControllerProvider(_filter).notifier).loadMore(),
@@ -141,8 +148,8 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                                 items: feed.items,
                                 index: index,
                               ),
-                              onToggle: canManagePeople ? _toggle : null,
-                              onLongPress: canManagePeople ? _startSelection : null,
+                              onToggle: canSelect ? _toggle : null,
+                              onLongPress: canSelect ? _startSelection : null,
                             ),
                 ),
               ),
@@ -181,7 +188,12 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     return false;
   }
 
-  Widget _headerBar({required bool canUpload, required bool anyoneTrained}) {
+  Widget _headerBar({
+    required bool canUpload,
+    required bool anyoneTrained,
+    required bool canApprove,
+    required bool canManagePeople,
+  }) {
     final theme = Theme.of(context);
     final bar = theme.appBarTheme;
     final title = _selecting
@@ -207,11 +219,17 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                 ),
               )
             else ...[
-              TextButton(
-                onPressed: _nameThisPerson,
-                child: const Text('Name'),
-              ),
-              if (anyoneTrained)
+              if (canApprove)
+                TextButton(
+                  onPressed: _selected.isEmpty ? null : _setPhotoDate,
+                  child: const Text('Date'),
+                ),
+              if (canManagePeople)
+                TextButton(
+                  onPressed: _nameThisPerson,
+                  child: const Text('Name'),
+                ),
+              if (canManagePeople && anyoneTrained)
                 TextButton(
                   onPressed: _tagSelected,
                   child: const Text('Tag'),
@@ -271,8 +289,14 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     });
   }
 
+  bool get _canApprove {
+    final session = ref.read(sessionControllerProvider);
+    return session is SessionAuthenticated && session.session.canApprove;
+  }
+
   void _startSelection(MediaItem item) {
-    if (item.isVideo || _busy) return;
+    if (_busy) return;
+    if (item.isVideo && !_canApprove) return;
     setState(() {
       _selecting = true;
       _headerHide.value = 0;
@@ -281,7 +305,8 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   }
 
   void _toggle(MediaItem item) {
-    if (item.isVideo || _busy) return;
+    if (_busy) return;
+    if (item.isVideo && !_canApprove) return;
     setState(() {
       if (_selected.contains(item.id)) {
         _selected.remove(item.id);
@@ -290,6 +315,42 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
       }
       _selecting = _selected.isNotEmpty;
     });
+  }
+
+  List<int> _selectedPhotoIds() {
+    final feed = ref.read(galleryFeedControllerProvider(_filter));
+    return [
+      for (final item in feed.items)
+        if (_selected.contains(item.id) && !item.isVideo) item.id,
+    ];
+  }
+
+  Future<void> _setPhotoDate() async {
+    if (_busy || _selected.isEmpty) return;
+    final choice = await showPhotoDateSheet(context);
+    if (choice == null || !mounted) return;
+
+    final ids = _selected.toList();
+    setState(() => _busy = true);
+    try {
+      await ref.read(reviewRepositoryProvider).updateEach(
+        ids,
+        takenAt: choice.useUploadDate ? null : choice.day,
+        setTakenAt: true,
+      );
+      ref.invalidate(galleryFeedControllerProvider);
+      if (!mounted) return;
+      _message(
+        choice.useUploadDate
+            ? 'Upload date restored on ${ids.length} item(s).'
+            : 'Date set on ${ids.length} item(s).',
+      );
+      _clearSelection();
+    } catch (e) {
+      if (mounted) _message(e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _openFilters() async {
@@ -305,7 +366,8 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
 
   Future<void> _nameThisPerson() async {
     if (_busy) return;
-    if (_selected.length > 5) {
+    final photoIds = _selectedPhotoIds();
+    if (photoIds.isEmpty || photoIds.length > 5) {
       _message('Choose 1 to 5 photos of the same person.');
       return;
     }
@@ -317,7 +379,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     try {
       final person = await ref.read(peopleRepositoryProvider).trainFromGallery(
         name: name,
-        mediaItemIds: _selected.toList(),
+        mediaItemIds: photoIds,
       );
       ref.invalidate(peopleListProvider);
       try {
@@ -339,12 +401,17 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
 
   Future<void> _tagSelected() async {
     if (_busy || _selected.isEmpty) return;
-    final count = _selected.length;
+    final photoIds = _selectedPhotoIds();
+    if (photoIds.isEmpty) {
+      _message('Choose approved photos to tag.');
+      return;
+    }
+    final count = photoIds.length;
     setState(() => _busy = true);
     _message('Tagging $count ${count == 1 ? 'photo' : 'photos'}...');
 
     try {
-      final result = await ref.read(peopleRepositoryProvider).tagSelected(_selected.toList());
+      final result = await ref.read(peopleRepositoryProvider).tagSelected(photoIds);
       try {
         await ref.read(galleryFeedControllerProvider(_filter).notifier).refresh();
       } catch (_) {}

@@ -29,6 +29,7 @@ class EventDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: eventAsync.maybeWhen(data: (e) => Text(e.title), orElse: () => const Text('Event')),
         actions: [
+          if (event != null) SaveEventButton(event: event),
           if (canManage && event != null)
             IconButton(
               tooltip: 'Delete',

@@ -4,10 +4,12 @@ import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/media/media_cache.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../gallery/widgets/media_tile.dart';
+import '../../gallery/widgets/photo_date_sheet.dart';
 import '../../events/models/event.dart';
 import '../../events/providers/events_repository.dart';
 import '../../gallery/providers/gallery_feed_controller.dart';
@@ -67,6 +69,26 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
       if (!mounted) return;
       ref.invalidate(pendingReviewProvider);
       _showMessage('Event set on ${selected.length} item(s).');
+    });
+  }
+
+  Future<void> _setPhotoDate(List<ReviewItem> selected) async {
+    final choice = await showPhotoDateSheet(context);
+    if (choice == null || !mounted) return;
+
+    await _runBatch(() async {
+      await ref.read(reviewRepositoryProvider).updateEach(
+        selected.map((item) => item.id).toList(),
+        takenAt: choice.useUploadDate ? null : choice.day,
+        setTakenAt: true,
+      );
+      if (!mounted) return;
+      ref.invalidate(pendingReviewProvider);
+      _showMessage(
+        choice.useUploadDate
+            ? 'Upload date restored on ${selected.length} item(s).'
+            : 'Date set on ${selected.length} item(s).',
+      );
     });
   }
 
@@ -153,6 +175,10 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                 TextButton(
                   onPressed: _busy || selected.isEmpty ? null : () => _assignEvent(selected),
                   child: const Text('Event'),
+                ),
+                TextButton(
+                  onPressed: _busy || selected.isEmpty ? null : () => _setPhotoDate(selected),
+                  child: const Text('Date'),
                 ),
                 TextButton(
                   onPressed: _busy || !hasVideo ? null : () => _makeVideosPrivate(selected),
@@ -356,6 +382,8 @@ class _ReviewEditorState extends ConsumerState<_ReviewEditor> {
   late Set<int> _tagIds;
   String _visibility = 'public';
   int? _eventId;
+  DateTime? _photoDate;
+  bool _dateTouched = false;
   bool _busy = false;
 
   @override
@@ -364,6 +392,7 @@ class _ReviewEditorState extends ConsumerState<_ReviewEditor> {
     _tagIds = {...widget.item.selectedTagIds};
     _visibility = widget.item.visibility;
     _eventId = widget.item.eventId;
+    _photoDate = widget.item.takenAt;
   }
 
   Future<void> _chooseFrame() async {
@@ -404,6 +433,8 @@ class _ReviewEditorState extends ConsumerState<_ReviewEditor> {
       eventId: _eventId,
       visibility: _visibility,
       tagIds: _tagIds.toList(),
+      takenAt: _photoDate,
+      setTakenAt: _dateTouched,
     );
   }
 
@@ -454,6 +485,27 @@ class _ReviewEditorState extends ConsumerState<_ReviewEditor> {
                 Text('Item #${item.id}', style: const TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
                 Text(item.isPreparing ? 'Preparing ${item.type}' : item.type),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    DateFormat.yMMMd().format((_photoDate ?? item.createdAt).toLocal()),
+                  ),
+                  subtitle: Text(_photoDate == null ? 'Upload date' : 'Chosen date'),
+                  trailing: const Icon(Icons.event_outlined),
+                  onTap: _busy
+                      ? null
+                      : () async {
+                          final choice = await showPhotoDateSheet(
+                            context,
+                            current: _photoDate ?? item.createdAt,
+                          );
+                          if (choice == null || !mounted) return;
+                          setState(() {
+                            _dateTouched = true;
+                            _photoDate = choice.useUploadDate ? null : choice.day;
+                          });
+                        },
+                ),
                 if (item.isVideo && item.fullUrl != null) ...[
                   const SizedBox(height: 12),
                   OutlinedButton.icon(

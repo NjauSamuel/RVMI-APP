@@ -27,6 +27,7 @@ class MediaItem {
     required this.durationSeconds,
     required this.tags,
     required this.createdAt,
+    this.takenAt,
     this.isFavorite = false,
   });
 
@@ -47,6 +48,7 @@ class MediaItem {
         const [],
     createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
         DateTime.now(),
+    takenAt: DateTime.tryParse(json['taken_at']?.toString() ?? ''),
     isFavorite: json['is_favorite'] as bool? ?? false,
   );
 
@@ -61,9 +63,13 @@ class MediaItem {
   final int? durationSeconds;
   final List<MediaTag> tags;
   final DateTime createdAt;
+  final DateTime? takenAt;
   final bool isFavorite;
 
   bool get isVideo => type == 'video';
+
+  /// Chosen photo day, or the upload time when none was set.
+  DateTime get displayAt => takenAt ?? createdAt;
 
   MediaItem copyWith({bool? isFavorite}) {
     return MediaItem(
@@ -78,6 +84,7 @@ class MediaItem {
       durationSeconds: durationSeconds,
       tags: tags,
       createdAt: createdAt,
+      takenAt: takenAt,
       isFavorite: isFavorite ?? this.isFavorite,
     );
   }
