@@ -19,6 +19,8 @@ class MoreScreen extends ConsumerWidget {
     final s = session is SessionAuthenticated ? session.session : null;
     final themeMode = ref.watch(themeModeControllerProvider);
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final canManagePeople = s?.canManagePeople ?? false;
+    final canManageAccounts = (s?.canManageUsers ?? false) || (s?.canManageRoles ?? false);
 
     return Scaffold(
       appBar: AppBar(title: const Text('More')),
@@ -43,26 +45,38 @@ class MoreScreen extends ConsumerWidget {
               title: Text(s.name),
               subtitle: Text(s.roles.isNotEmpty ? s.roles.join(', ') : s.email),
             ),
-          const Divider(),
-          if (s?.canManagePeople ?? false)
+          if (canManagePeople || canManageAccounts) const Divider(),
+          if (canManagePeople) ...[
+            const ListTile(
+              title: Text('Recognition'),
+              dense: true,
+            ),
             ListTile(
               leading: const Icon(Icons.face_outlined),
               title: const Text('People'),
               subtitle: const Text('Reference photos for face recognition'),
               onTap: () => context.push('/people'),
             ),
-          if (s?.canManageUsers ?? false)
-            ListTile(
-              leading: const Icon(Icons.people_outline),
-              title: const Text('Users'),
-              onTap: () => context.push('/admin/users'),
+          ],
+          if (canManageAccounts) ...[
+            if (canManagePeople) const Divider(),
+            const ListTile(
+              title: Text('Accounts'),
+              dense: true,
             ),
-          if (s?.canManageRoles ?? false)
-            ListTile(
-              leading: const Icon(Icons.admin_panel_settings_outlined),
-              title: const Text('Roles & permissions'),
-              onTap: () => context.push('/admin/roles'),
-            ),
+            if (s?.canManageUsers ?? false)
+              ListTile(
+                leading: const Icon(Icons.people_outline),
+                title: const Text('Users'),
+                onTap: () => context.push('/admin/users'),
+              ),
+            if (s?.canManageRoles ?? false)
+              ListTile(
+                leading: const Icon(Icons.admin_panel_settings_outlined),
+                title: const Text('Roles & permissions'),
+                onTap: () => context.push('/admin/roles'),
+              ),
+          ],
           const Divider(),
           const ListTile(
             title: Text('Appearance'),

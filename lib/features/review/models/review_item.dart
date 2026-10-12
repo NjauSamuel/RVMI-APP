@@ -2,7 +2,9 @@ class ReviewItem {
   ReviewItem({
     required this.id,
     required this.type,
-    required this.stagingPreviewUrl,
+    required this.status,
+    required this.thumbnailUrl,
+    required this.fullUrl,
     required this.eventId,
     required this.eventTitle,
     required this.visibility,
@@ -18,10 +20,12 @@ class ReviewItem {
     return ReviewItem(
       id: json['id'] as int,
       type: json['type'] as String,
-      stagingPreviewUrl: json['preview_url'] as String?,
+      status: json['status'] as String? ?? 'pending_review',
+      thumbnailUrl: json['thumbnail_url'] as String?,
+      fullUrl: json['full_url'] as String?,
       eventId: event?['id'] as int?,
       eventTitle: event?['title'] as String?,
-      visibility: json['visibility'] as String? ?? 'public',
+      visibility: json['visibility_override'] as String? ?? 'public',
       suggestedTags: tags,
       selectedTagIds: tags.where((t) => t.selected).map((t) => t.id).toSet(),
     );
@@ -29,7 +33,13 @@ class ReviewItem {
 
   final int id;
   final String type;
-  final String? stagingPreviewUrl;
+  final String status;
+  final String? thumbnailUrl;
+  final String? fullUrl;
+
+  bool get isVideo => type == 'video';
+
+  bool get isPreparing => status == 'pending_processing';
   int? eventId;
   String? eventTitle;
   String visibility;

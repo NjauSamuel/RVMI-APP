@@ -19,6 +19,31 @@ class EventsRepository {
         .toList();
   }
 
+  /// Walks a few pages so the home filter can offer more than the first 20.
+  Future<List<ChurchEvent>> listAll({int maxPages = 5}) async {
+    final client = ref.read(apiClientProvider);
+    final all = <ChurchEvent>[];
+    var page = 1;
+    var lastPage = 1;
+
+    while (page <= lastPage && page <= maxPages) {
+      final response = await client.get<Map<String, dynamic>>(
+        '/events',
+        query: {'page': page},
+      );
+      final data = response.data!;
+      all.addAll(
+        (data['data'] as List).map(
+          (e) => ChurchEvent.fromJson(Map<String, dynamic>.from(e as Map)),
+        ),
+      );
+      lastPage = data['last_page'] as int? ?? page;
+      page++;
+    }
+
+    return all;
+  }
+
   Future<ChurchEvent> show(int id) async {
     final client = ref.read(apiClientProvider);
     final response = await client.get<Map<String, dynamic>>('/events/$id');

@@ -36,8 +36,20 @@ class ApiClient {
     return _guard(() => _dio.get<T>(path, queryParameters: query));
   }
 
-  Future<Response<T>> post<T>(String path, {Object? data}) {
-    return _guard(() => _dio.post<T>(path, data: data));
+  Future<Response<T>> post<T>(
+    String path, {
+    Object? data,
+    Duration? receiveTimeout,
+  }) {
+    return _guard(
+      () => _dio.post<T>(
+        path,
+        data: data,
+        options: receiveTimeout == null
+            ? null
+            : Options(receiveTimeout: receiveTimeout),
+      ),
+    );
   }
 
   Future<Response<T>> patch<T>(String path, {Object? data}) {

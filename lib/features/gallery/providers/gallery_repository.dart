@@ -26,14 +26,20 @@ class GalleryRepository {
     int page = 1,
     int? eventId,
     int? tagId,
+    String? from,
+    String? to,
+    String? type,
   }) async {
     final client = ref.read(apiClientProvider);
     final response = await client.get<Map<String, dynamic>>(
       '/gallery',
       query: {
         'page': page,
-        if (eventId != null) 'event_id': eventId,
-        if (tagId != null) 'tag_id': tagId,
+        'event_id': ?eventId,
+        'tag_id': ?tagId,
+        'from': ?from,
+        'to': ?to,
+        'type': ?type,
       },
     );
 
@@ -60,6 +66,11 @@ class GalleryRepository {
   Future<void> recordView(int id) async {
     final client = ref.read(apiClientProvider);
     await client.post<void>('/gallery/$id/view');
+  }
+
+  Future<void> delete(int id) async {
+    final client = ref.read(apiClientProvider);
+    await client.delete<void>('/gallery/$id');
   }
 }
 

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-
 import '../../favorites/providers/favorites_repository.dart';
 import '../providers/gallery_feed_controller.dart';
+import 'media_viewer_screen.dart';
 import '../widgets/media_grid.dart';
 
 /// A single tag's own mini-timeline, e.g. every photo/video someone has
@@ -49,7 +48,11 @@ class TagTimelineScreen extends ConsumerWidget {
                 items: state.items,
                 loadingMore: state.loadingMore,
                 onNearEnd: () => ref.read(galleryFeedControllerProvider(filter).notifier).loadMore(),
-                onOpen: (item, index) => context.push('/media/${item.id}'),
+                onOpen: (item, index) => openMediaViewer(
+                  context,
+                  items: state.items,
+                  index: index,
+                ),
               ),
             ),
     );

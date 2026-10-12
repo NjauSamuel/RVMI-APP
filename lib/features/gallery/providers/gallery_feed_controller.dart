@@ -4,19 +4,38 @@ import '../models/media_item.dart';
 import 'gallery_repository.dart';
 
 class GalleryFeedFilter {
-  const GalleryFeedFilter({this.eventId, this.tagId});
+  const GalleryFeedFilter({
+    this.eventId,
+    this.tagId,
+    this.from,
+    this.to,
+    this.type,
+  });
 
   final int? eventId;
   final int? tagId;
+
+  /// Inclusive range as ISO-8601 instants. Null means that side is open.
+  final String? from;
+  final String? to;
+
+  /// `image`, `video`, or null for both.
+  final String? type;
+
+  bool get hasConstraints =>
+      eventId != null || tagId != null || from != null || to != null || type != null;
 
   @override
   bool operator ==(Object other) =>
       other is GalleryFeedFilter &&
       other.eventId == eventId &&
-      other.tagId == tagId;
+      other.tagId == tagId &&
+      other.from == from &&
+      other.to == to &&
+      other.type == type;
 
   @override
-  int get hashCode => Object.hash(eventId, tagId);
+  int get hashCode => Object.hash(eventId, tagId, from, to, type);
 }
 
 class GalleryFeedState {
@@ -69,32 +88,42 @@ class GalleryFeedController extends Notifier<GalleryFeedState> {
   }
 
   Future<void> refresh() async {
-    state = state.copyWith(loading: true, error: null);
+    if (!ref.mounted) return;
+    state = state.copyWith(loading: state.items.isEmpty, error: null);
     try {
       final result = await ref.read(galleryRepositoryProvider).fetch(
         page: 1,
         eventId: arg.eventId,
         tagId: arg.tagId,
+        from: arg.from,
+        to: arg.to,
+        type: arg.type,
       );
+      if (!ref.mounted) return;
       state = GalleryFeedState(
         items: result.items,
         page: result.currentPage,
         hasMore: result.hasMore,
       );
     } catch (e) {
+      if (!ref.mounted) return;
       state = state.copyWith(loading: false, error: e.toString());
     }
   }
 
   Future<void> loadMore() async {
-    if (state.loadingMore || !state.hasMore) return;
+    if (!ref.mounted || state.loadingMore || !state.hasMore) return;
     state = state.copyWith(loadingMore: true);
     try {
       final result = await ref.read(galleryRepositoryProvider).fetch(
         page: state.page + 1,
         eventId: arg.eventId,
         tagId: arg.tagId,
+        from: arg.from,
+        to: arg.to,
+        type: arg.type,
       );
+      if (!ref.mounted) return;
       state = state.copyWith(
         items: [...state.items, ...result.items],
         page: result.currentPage,
@@ -102,12 +131,13 @@ class GalleryFeedController extends Notifier<GalleryFeedState> {
         loadingMore: false,
       );
     } catch (_) {
+      if (!ref.mounted) return;
       state = state.copyWith(loadingMore: false);
     }
   }
 }
 
-final galleryFeedControllerProvider = NotifierProvider.family<
-    GalleryFeedController, GalleryFeedState, GalleryFeedFilter>(
+final galleryFeedControllerProvider = NotifierProvider.autoDispose
+    .family<GalleryFeedController, GalleryFeedState, GalleryFeedFilter>(
   GalleryFeedController.new,
 );

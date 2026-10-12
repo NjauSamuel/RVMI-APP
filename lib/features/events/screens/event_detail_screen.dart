@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../auth/providers/session_controller.dart';
 import '../../gallery/providers/gallery_feed_controller.dart';
+import '../../gallery/screens/media_viewer_screen.dart';
+import '../../gallery/widgets/media_grid.dart';
 import '../providers/events_repository.dart';
 import '../widgets/comment_thread.dart';
 
@@ -34,38 +36,25 @@ class EventDetailScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () => ref.read(galleryFeedControllerProvider(filter).notifier).refresh(),
         child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverToBoxAdapter(
-              child: feed.loading
-                  ? const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-            if (!feed.loading)
-              SliverPadding(
-                padding: const EdgeInsets.all(8),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 4,
-                    mainAxisSpacing: 4,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final item = feed.items[index];
-                      return GestureDetector(
-                        onTap: () => context.push('/media/${item.id}'),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: item.thumbnailUrl != null
-                              ? Image.network(item.thumbnailUrl!, fit: BoxFit.cover)
-                              : Container(color: Colors.black12),
-                        ),
-                      );
-                    },
-                    childCount: feed.items.length,
+            if (feed.loading && feed.items.isEmpty)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ),
+            if (feed.items.isNotEmpty)
+              SliverToBoxAdapter(
+                child: MediaGrid(
+                  items: feed.items,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  onOpen: (item, index) => openMediaViewer(
+                    context,
+                    items: feed.items,
+                    index: index,
                   ),
                 ),
               ),

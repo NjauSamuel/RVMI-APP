@@ -9,9 +9,8 @@ import '../models/person.dart';
 import '../providers/people_repository.dart';
 
 /// Lets an admin register the specific people the church wants recognized
-/// (e.g. the pastor's family, ministry leads) and feed in a reference
-/// photo. Rekognition indexes the face so future uploads auto-suggest that
-/// person's tag during review.
+/// (e.g. the pastor's family, ministry leads) and store up to five reference
+/// photos. Rekognition indexes those faces so later photos can be matched.
 class PeopleScreen extends ConsumerWidget {
   const PeopleScreen({super.key});
 
@@ -36,21 +35,20 @@ class PeopleScreen extends ConsumerWidget {
             itemBuilder: (context, index) {
               final person = list[index];
               final dark = Theme.of(context).brightness == Brightness.dark;
+              final trained = person.indexedInRekognition || person.referenceFaceCount > 0;
               return ListTile(
                 leading: CircleAvatar(
                   backgroundColor: dark ? AppColors.brand800 : AppColors.brand100,
                   child: Icon(
-                    person.indexedInRekognition ? Icons.face_retouching_natural : Icons.face,
+                    trained ? Icons.face_retouching_natural : Icons.face,
                     color: dark ? AppColors.brand300 : AppColors.brand600,
                   ),
                 ),
                 title: Text(person.name),
-                subtitle: Text(person.indexedInRekognition
-                    ? 'Trained for auto-recognition'
-                    : 'No reference photo yet'),
+                subtitle: Text(person.referenceLabel),
                 trailing: TextButton(
-                  onPressed: () => _addReferencePhoto(context, ref, person),
-                  child: Text(person.indexedInRekognition ? 'Retrain' : 'Add photo'),
+                  onPressed: () => _addReferencePhotos(context, ref, person),
+                  child: Text(trained ? 'Retrain' : 'Add photos'),
                 ),
               );
             },
@@ -80,26 +78,39 @@ class PeopleScreen extends ConsumerWidget {
     );
 
     if (confirmed == true && controller.text.trim().isNotEmpty) {
-      await ref.read(peopleRepositoryProvider).create(controller.text.trim());
-      ref.invalidate(peopleListProvider);
+      try {
+        await ref.read(peopleRepositoryProvider).create(controller.text.trim());
+        ref.invalidate(peopleListProvider);
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        }
+      } finally {
+        controller.dispose();
+      }
+      return;
     }
+    controller.dispose();
   }
 
-  Future<void> _addReferencePhoto(BuildContext context, WidgetRef ref, Person person) async {
+  Future<void> _addReferencePhotos(BuildContext context, WidgetRef ref, Person person) async {
     final messenger = ScaffoldMessenger.of(context);
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
-    if (picked == null) return;
+    final picked = await picker.pickMultiImage(limit: 5);
+    if (picked.isEmpty) return;
 
+    final files = picked.take(5).map((file) => File(file.path)).toList();
     messenger.showSnackBar(SnackBar(content: Text('Training ${person.name}...')));
 
-    final indexed = await ref
-        .read(peopleRepositoryProvider)
-        .addReferencePhoto(person, File(picked.path));
-
-    ref.invalidate(peopleListProvider);
-    messenger.showSnackBar(
-      SnackBar(content: Text(indexed ? '${person.name} is ready for auto-recognition.' : 'Could not train from that photo.')),
-    );
+    try {
+      final trained = await ref.read(peopleRepositoryProvider).replaceReferencePhotos(person, files);
+      ref.invalidate(peopleListProvider);
+      final ready = trained.referenceFaceCount > 0
+          ? '${trained.name} is ready with ${trained.referenceLabel}.'
+          : 'Could not find a clear face in those photos.';
+      messenger.showSnackBar(SnackBar(content: Text(ready)));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+    }
   }
 }

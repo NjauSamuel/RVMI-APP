@@ -8,15 +8,36 @@ import '../models/media_item.dart';
 /// thumbnail as soon as it's cached - the Telegram-style progressive load
 /// the client explicitly asked for.
 class MediaTile extends StatelessWidget {
-  const MediaTile({super.key, required this.item, this.onTap});
+  const MediaTile({
+    super.key,
+    required this.item,
+    this.onTap,
+    this.onLongPress,
+    this.selected = false,
+    this.selectionMode = false,
+  });
 
   final MediaItem item;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final bool selected;
+  final bool selectionMode;
+
+  /// Photos fall back to the full image when the thumbnail is not ready yet,
+  /// matching the review screen. Videos only show their poster.
+  String? get _previewUrl {
+    if (item.thumbnailUrl != null) return item.thumbnailUrl;
+    if (!item.isVideo) return item.fullUrl;
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final showMark = selectionMode && !item.isVideo;
+
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: Stack(
@@ -26,12 +47,11 @@ class MediaTile extends StatelessWidget {
               BlurHash(hash: item.blurhash!)
             else
               Container(color: Colors.black12),
-            if (item.thumbnailUrl != null)
-              CachedNetworkImage(
-                imageUrl: item.thumbnailUrl!,
-                fit: BoxFit.cover,
-                fadeInDuration: const Duration(milliseconds: 180),
-                errorWidget: (_, __, ___) => const SizedBox.shrink(),
+            if (_previewUrl != null)
+              GridPreviewImage(
+                mediaId: item.id,
+                url: _previewUrl!,
+                thumbnail: item.thumbnailUrl != null,
               ),
             if (item.isVideo)
               const Align(
@@ -42,9 +62,54 @@ class MediaTile extends StatelessWidget {
                   size: 32,
                 ),
               ),
+            if (selected)
+              const ColoredBox(color: Color(0x33000000)),
+            if (showMark)
+              Align(
+                alignment: Alignment.topRight,
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: Icon(
+                    selected ? Icons.check_circle : Icons.circle_outlined,
+                    color: Colors.white,
+                    shadows: const [Shadow(blurRadius: 6, color: Colors.black54)],
+                  ),
+                ),
+              ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Grid picture cached by media id. A new signed link reuses the file
+/// already on the phone, and the decode stays near the tile size so
+/// scrolling back does not fill memory with full-size bitmaps.
+class GridPreviewImage extends StatelessWidget {
+  const GridPreviewImage({
+    super.key,
+    required this.mediaId,
+    required this.url,
+    required this.thumbnail,
+  });
+
+  final int mediaId;
+  final String url;
+  final bool thumbnail;
+
+  @override
+  Widget build(BuildContext context) {
+    final tileWidth = MediaQuery.sizeOf(context).width / 2;
+    final cachePixels = (tileWidth * MediaQuery.devicePixelRatioOf(context)).round().clamp(240, 720);
+
+    return CachedNetworkImage(
+      imageUrl: url,
+      cacheKey: 'media-$mediaId-${thumbnail ? 'thumb' : 'full'}',
+      memCacheWidth: cachePixels,
+      fit: BoxFit.cover,
+      fadeInDuration: const Duration(milliseconds: 180),
+      errorWidget: (_, _, _) => const SizedBox.shrink(),
     );
   }
 }

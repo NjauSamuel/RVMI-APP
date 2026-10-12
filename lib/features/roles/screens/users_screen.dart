@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../auth/providers/session_controller.dart';
 import '../providers/roles_repository.dart';
 import '../providers/users_repository.dart';
 
@@ -16,6 +17,9 @@ class UsersScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final users = ref.watch(usersListProvider);
+    final session = ref.watch(sessionControllerProvider);
+    final me = session is SessionAuthenticated ? session.session : null;
+    final canDelete = me?.can('delete-records') ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -49,26 +53,64 @@ class UsersScreen extends ConsumerWidget {
                     : null,
               ),
               title: Text(user.name),
-              subtitle: Text('${user.email} · ${user.roles.join(', ')}'),
+              subtitle: Text(
+                '${user.email} · ${user.roles.join(', ')}${user.isActive ? '' : ' · Inactive'}',
+              ),
               trailing: PopupMenuButton<String>(
                 onSelected: (value) async {
+                  final repo = ref.read(usersRepositoryProvider);
                   if (value == 'deactivate') {
-                    await ref.read(usersRepositoryProvider).deactivate(user.id);
-                    ref.invalidate(usersListProvider);
+                    await repo.setActive(user.id, false);
+                  } else if (value == 'reactivate') {
+                    await repo.setActive(user.id, true);
+                  } else if (value == 'delete') {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        title: Text('Delete ${user.name}?'),
+                        content: Text(
+                          '${user.name} will leave the user list and will not be able to sign in. Their comments and uploads stay.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext, false),
+                            child: const Text('Cancel'),
+                          ),
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.error,
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () => Navigator.pop(dialogContext, true),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed != true || !context.mounted) return;
+                    await repo.delete(user.id);
                   } else {
-                    await ref.read(usersRepositoryProvider).updateRole(user.id, value);
-                    ref.invalidate(usersListProvider);
+                    await repo.updateRole(user.id, value);
                   }
+                  ref.invalidate(usersListProvider);
                 },
                 itemBuilder: (context) => [
                   const PopupMenuItem(value: 'Developer', child: Text('Set role: Developer')),
                   const PopupMenuItem(value: 'Senior Admin', child: Text('Set role: Senior Admin')),
                   const PopupMenuItem(value: 'Member', child: Text('Set role: Member')),
                   const PopupMenuDivider(),
-                  const PopupMenuItem(
-                    value: 'deactivate',
-                    child: Text('Deactivate', style: TextStyle(color: AppColors.error)),
-                  ),
+                  if (user.isActive)
+                    const PopupMenuItem(
+                      value: 'deactivate',
+                      child: Text('Deactivate', style: TextStyle(color: AppColors.error)),
+                    )
+                  else
+                    const PopupMenuItem(value: 'reactivate', child: Text('Reactivate')),
+                  if (canDelete && me?.userId != user.id)
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Delete', style: TextStyle(color: AppColors.error)),
+                    ),
                 ],
               ),
             );

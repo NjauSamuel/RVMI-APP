@@ -64,6 +64,7 @@ class PermissionCatalog {
     'comment': 'Comment on events',
     'manage-inventory': 'Manage inventory',
     'manage-users': 'Manage users',
+    'delete-records': 'Delete users and media',
     'manage-roles': 'Manage roles & permissions',
     'manage-settings': 'Manage app settings',
   };

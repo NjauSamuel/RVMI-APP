@@ -46,9 +46,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/media/:id',
-        builder: (context, state) => MediaViewerScreen(
-          initialMediaId: int.parse(state.pathParameters['id']!),
-        ),
+        builder: (context, state) {
+          final extra = state.extra;
+          final args = extra is MediaViewerArgs ? extra : null;
+          return MediaViewerScreen(
+            initialMediaId: int.parse(state.pathParameters['id']!),
+            items: args?.items,
+            initialIndex: args?.index ?? 0,
+          );
+        },
       ),
       GoRoute(
         path: '/tags/:id',

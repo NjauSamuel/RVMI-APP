@@ -38,7 +38,7 @@ class UsersRepository {
     await client.patch<void>('/admin/users/$userId', data: {'is_active': active});
   }
 
-  Future<void> deactivate(int userId) async {
+  Future<void> delete(int userId) async {
     final client = ref.read(apiClientProvider);
     await client.delete<void>('/admin/users/$userId');
   }

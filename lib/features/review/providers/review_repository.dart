@@ -21,16 +21,29 @@ class ReviewRepository {
     int? eventId,
     String? visibility,
     List<int>? tagIds,
+    String? posterFrameBase64,
   }) async {
     final client = ref.read(apiClientProvider);
     await client.patch<void>(
       '/review/$mediaItemId',
       data: {
         if (eventId != null) 'event_id': eventId,
-        if (visibility != null) 'visibility': visibility,
+        if (visibility != null) 'visibility_override': visibility,
         if (tagIds != null) 'tag_ids': tagIds,
+        if (posterFrameBase64 != null) 'poster_frame_base64': posterFrameBase64,
       },
     );
+  }
+
+  /// Applies one event or visibility change to each id through the existing update.
+  Future<void> updateEach(
+    List<int> mediaItemIds, {
+    int? eventId,
+    String? visibility,
+  }) async {
+    for (final id in mediaItemIds) {
+      await update(id, eventId: eventId, visibility: visibility);
+    }
   }
 
   Future<void> approve(int mediaItemId) async {
