@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/media/media_cache.dart';
+import '../../../core/layout/window_layout.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../gallery/widgets/media_tile.dart';
 import '../../gallery/widgets/photo_date_sheet.dart';
@@ -62,10 +63,12 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
     if (eventId == null || !mounted) return;
 
     await _runBatch(() async {
-      await ref.read(reviewRepositoryProvider).updateEach(
-        selected.map((item) => item.id).toList(),
-        eventId: eventId,
-      );
+      await ref
+          .read(reviewRepositoryProvider)
+          .updateEach(
+            selected.map((item) => item.id).toList(),
+            eventId: eventId,
+          );
       if (!mounted) return;
       ref.invalidate(pendingReviewProvider);
       _showMessage('Event set on ${selected.length} item(s).');
@@ -77,11 +80,13 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
     if (choice == null || !mounted) return;
 
     await _runBatch(() async {
-      await ref.read(reviewRepositoryProvider).updateEach(
-        selected.map((item) => item.id).toList(),
-        takenAt: choice.useUploadDate ? null : choice.day,
-        setTakenAt: true,
-      );
+      await ref
+          .read(reviewRepositoryProvider)
+          .updateEach(
+            selected.map((item) => item.id).toList(),
+            takenAt: choice.useUploadDate ? null : choice.day,
+            setTakenAt: true,
+          );
       if (!mounted) return;
       ref.invalidate(pendingReviewProvider);
       _showMessage(
@@ -93,9 +98,14 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
   }
 
   Future<void> _makeVideosPrivate(List<ReviewItem> selected) async {
-    final videos = selected.where((item) => item.isVideo).map((item) => item.id).toList();
+    final videos = selected
+        .where((item) => item.isVideo)
+        .map((item) => item.id)
+        .toList();
     await _runBatch(() async {
-      await ref.read(reviewRepositoryProvider).updateEach(videos, visibility: 'private');
+      await ref
+          .read(reviewRepositoryProvider)
+          .updateEach(videos, visibility: 'private');
       if (!mounted) return;
       ref.invalidate(pendingReviewProvider);
       _showMessage('${videos.length} video(s) set to private.');
@@ -104,7 +114,9 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
 
   Future<void> _approveSelected(List<ReviewItem> selected) async {
     await _runBatch(() async {
-      await ref.read(reviewRepositoryProvider).bulkApprove(selected.map((item) => item.id).toList());
+      await ref
+          .read(reviewRepositoryProvider)
+          .bulkApprove(selected.map((item) => item.id).toList());
       if (!mounted) return;
       setState(() => _selected.clear());
       ref.invalidate(pendingReviewProvider);
@@ -137,14 +149,18 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     final pending = ref.watch(pendingReviewProvider);
     final items = pending.asData?.value ?? const <ReviewItem>[];
-    final selected = items.where((item) => _selected.contains(item.id)).toList();
+    final selected = items
+        .where((item) => _selected.contains(item.id))
+        .toList();
     final allSelected = items.isNotEmpty && selected.length == items.length;
     final hasVideo = selected.any((item) => item.isVideo);
 
@@ -173,19 +189,27 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                   child: Text(allSelected ? 'Clear' : 'Select all'),
                 ),
                 TextButton(
-                  onPressed: _busy || selected.isEmpty ? null : () => _assignEvent(selected),
+                  onPressed: _busy || selected.isEmpty
+                      ? null
+                      : () => _assignEvent(selected),
                   child: const Text('Event'),
                 ),
                 TextButton(
-                  onPressed: _busy || selected.isEmpty ? null : () => _setPhotoDate(selected),
+                  onPressed: _busy || selected.isEmpty
+                      ? null
+                      : () => _setPhotoDate(selected),
                   child: const Text('Date'),
                 ),
                 TextButton(
-                  onPressed: _busy || !hasVideo ? null : () => _makeVideosPrivate(selected),
+                  onPressed: _busy || !hasVideo
+                      ? null
+                      : () => _makeVideosPrivate(selected),
                   child: const Text('Private'),
                 ),
                 TextButton(
-                  onPressed: _busy || selected.isEmpty ? null : () => _approveSelected(selected),
+                  onPressed: _busy || selected.isEmpty
+                      ? null
+                      : () => _approveSelected(selected),
                   child: Text('Approve ${selected.length}'),
                 ),
               ],
@@ -198,33 +222,41 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
           if (loaded.isEmpty) {
             return const Center(child: Text('Nothing waiting for review.'));
           }
-          return GridView.builder(
-            padding: const EdgeInsets.all(8),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-            ),
-            itemCount: loaded.length,
-            itemBuilder: (context, index) {
-              final item = loaded[index];
-              return _ReviewTile(
-                item: item,
-                selected: _selected.contains(item.id),
-                onSelectChanged: (value) => setState(() {
-                  if (value) {
-                    _selected.add(item.id);
-                  } else {
-                    _selected.remove(item.id);
-                  }
-                }),
-                onOpenDetails: () => _openDetails(item),
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth.isFinite
+                  ? constraints.maxWidth
+                  : MediaQuery.sizeOf(context).width;
+              return GridView.builder(
+                padding: const EdgeInsets.all(8),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: photoColumnCount(width),
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                ),
+                itemCount: loaded.length,
+                itemBuilder: (context, index) {
+                  final item = loaded[index];
+                  return _ReviewTile(
+                    item: item,
+                    selected: _selected.contains(item.id),
+                    onSelectChanged: (value) => setState(() {
+                      if (value) {
+                        _selected.add(item.id);
+                      } else {
+                        _selected.remove(item.id);
+                      }
+                    }),
+                    onOpenDetails: () => _openDetails(item),
+                  );
+                },
               );
             },
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => const Center(child: Text('Could not load pending items.')),
+        error: (e, _) =>
+            const Center(child: Text('Could not load pending items.')),
       ),
     );
   }
@@ -285,10 +317,7 @@ class _ReviewTile extends StatelessWidget {
                       child: Icon(item.isVideo ? Icons.videocam : Icons.image),
                     )
                   : item.thumbnailUrl != null
-                  ? GridPreviewImage(
-                      mediaId: item.id,
-                      url: preview,
-                    )
+                  ? GridPreviewImage(mediaId: item.id, url: preview)
                   : CachedNetworkImage(
                       imageUrl: preview,
                       cacheManager: MediaCaches.fullPhotos,
@@ -299,7 +328,13 @@ class _ReviewTile extends StatelessWidget {
             ),
             if (item.isVideo)
               const IgnorePointer(
-                child: Center(child: Icon(Icons.play_circle_fill, color: Colors.white, size: 36)),
+                child: Center(
+                  child: Icon(
+                    Icons.play_circle_fill,
+                    color: Colors.white,
+                    size: 36,
+                  ),
+                ),
               ),
             if (item.isPreparing && preview == null)
               const Align(
@@ -331,10 +366,7 @@ class _ReviewTile extends StatelessWidget {
             Positioned(
               top: 6,
               right: 6,
-              child: _TileButton(
-                icon: Icons.tune,
-                onTap: onOpenDetails,
-              ),
+              child: _TileButton(icon: Icons.tune, onTap: onOpenDetails),
             ),
           ],
         ),
@@ -344,7 +376,11 @@ class _ReviewTile extends StatelessWidget {
 }
 
 class _TileButton extends StatelessWidget {
-  const _TileButton({required this.icon, required this.onTap, this.filled = false});
+  const _TileButton({
+    required this.icon,
+    required this.onTap,
+    this.filled = false,
+  });
 
   final IconData icon;
   final VoidCallback onTap;
@@ -400,17 +436,17 @@ class _ReviewEditorState extends ConsumerState<_ReviewEditor> {
     if (url == null) return;
     final bytes = await Navigator.of(context).push<Uint8List>(
       MaterialPageRoute(
-        builder: (_) => ReviewPreviewScreen(url: url, isVideo: true, pickFrame: true),
+        builder: (_) =>
+            ReviewPreviewScreen(url: url, isVideo: true, pickFrame: true),
       ),
     );
     if (bytes == null || !mounted) return;
 
     setState(() => _busy = true);
     try {
-      await ref.read(reviewRepositoryProvider).update(
-        widget.item.id,
-        posterFrameBase64: base64Encode(bytes),
-      );
+      await ref
+          .read(reviewRepositoryProvider)
+          .update(widget.item.id, posterFrameBase64: base64Encode(bytes));
       await CachedNetworkImage.evictFromCache(
         widget.item.fullUrl ?? '',
         cacheKey: MediaCaches.thumbKey(widget.item.id),
@@ -428,14 +464,16 @@ class _ReviewEditorState extends ConsumerState<_ReviewEditor> {
   }
 
   Future<void> _saveEdits() async {
-    await ref.read(reviewRepositoryProvider).update(
-      widget.item.id,
-      eventId: _eventId,
-      visibility: _visibility,
-      tagIds: _tagIds.toList(),
-      takenAt: _photoDate,
-      setTakenAt: _dateTouched,
-    );
+    await ref
+        .read(reviewRepositoryProvider)
+        .update(
+          widget.item.id,
+          eventId: _eventId,
+          visibility: _visibility,
+          tagIds: _tagIds.toList(),
+          takenAt: _photoDate,
+          setTakenAt: _dateTouched,
+        );
   }
 
   Future<void> _approve() async {
@@ -463,7 +501,9 @@ class _ReviewEditorState extends ConsumerState<_ReviewEditor> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -482,15 +522,22 @@ class _ReviewEditorState extends ConsumerState<_ReviewEditor> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Item #${item.id}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text(
+                  'Item #${item.id}',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
                 const SizedBox(height: 4),
                 Text(item.isPreparing ? 'Preparing ${item.type}' : item.type),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(
-                    DateFormat.yMMMd().format((_photoDate ?? item.createdAt).toLocal()),
+                    DateFormat.yMMMd().format(
+                      (_photoDate ?? item.createdAt).toLocal(),
+                    ),
                   ),
-                  subtitle: Text(_photoDate == null ? 'Upload date' : 'Chosen date'),
+                  subtitle: Text(
+                    _photoDate == null ? 'Upload date' : 'Chosen date',
+                  ),
                   trailing: const Icon(Icons.event_outlined),
                   onTap: _busy
                       ? null
@@ -502,7 +549,9 @@ class _ReviewEditorState extends ConsumerState<_ReviewEditor> {
                           if (choice == null || !mounted) return;
                           setState(() {
                             _dateTouched = true;
-                            _photoDate = choice.useUploadDate ? null : choice.day;
+                            _photoDate = choice.useUploadDate
+                                ? null
+                                : choice.day;
                           });
                         },
                 ),
@@ -519,8 +568,17 @@ class _ReviewEditorState extends ConsumerState<_ReviewEditor> {
                   data: (list) => DropdownButtonFormField<int>(
                     initialValue: _eventId,
                     decoration: const InputDecoration(labelText: 'Event'),
-                    items: list.map((event) => DropdownMenuItem(value: event.id, child: Text(event.title))).toList(),
-                    onChanged: _busy ? null : (value) => setState(() => _eventId = value),
+                    items: list
+                        .map(
+                          (event) => DropdownMenuItem(
+                            value: event.id,
+                            child: Text(event.title),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: _busy
+                        ? null
+                        : (value) => setState(() => _eventId = value),
                   ),
                   loading: () => const LinearProgressIndicator(),
                   error: (e, _) => const SizedBox.shrink(),
@@ -534,7 +592,10 @@ class _ReviewEditorState extends ConsumerState<_ReviewEditor> {
                     return FilterChip(
                       label: Text(tag.name),
                       selected: selected,
-                      avatar: Icon(tag.kind == 'person' ? Icons.face : Icons.landscape, size: 16),
+                      avatar: Icon(
+                        tag.kind == 'person' ? Icons.face : Icons.landscape,
+                        size: 16,
+                      ),
                       onSelected: _busy
                           ? null
                           : (value) => setState(() {
@@ -554,7 +615,10 @@ class _ReviewEditorState extends ConsumerState<_ReviewEditor> {
                     ButtonSegment(value: 'private', label: Text('Private')),
                   ],
                   selected: {_visibility},
-                  onSelectionChanged: _busy ? null : (selection) => setState(() => _visibility = selection.first),
+                  onSelectionChanged: _busy
+                      ? null
+                      : (selection) =>
+                            setState(() => _visibility = selection.first),
                 ),
                 const SizedBox(height: 12),
                 Row(

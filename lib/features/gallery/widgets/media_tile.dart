@@ -47,10 +47,7 @@ class MediaTile extends StatelessWidget {
             else
               Container(color: Colors.black12),
             if (_previewUrl != null)
-              GridPreviewImage(
-                mediaId: item.id,
-                url: _previewUrl!,
-              ),
+              GridPreviewImage(mediaId: item.id, url: _previewUrl!),
             if (item.isVideo)
               const Align(
                 alignment: Alignment.center,
@@ -60,8 +57,7 @@ class MediaTile extends StatelessWidget {
                   size: 32,
                 ),
               ),
-            if (selected)
-              const ColoredBox(color: Color(0x33000000)),
+            if (selected) const ColoredBox(color: Color(0x33000000)),
             if (showMark)
               Align(
                 alignment: Alignment.topRight,
@@ -70,7 +66,9 @@ class MediaTile extends StatelessWidget {
                   child: Icon(
                     selected ? Icons.check_circle : Icons.circle_outlined,
                     color: Colors.white,
-                    shadows: const [Shadow(blurRadius: 6, color: Colors.black54)],
+                    shadows: const [
+                      Shadow(blurRadius: 6, color: Colors.black54),
+                    ],
                   ),
                 ),
               ),
@@ -85,20 +83,28 @@ class MediaTile extends StatelessWidget {
 /// already on the phone, and the decode stays near the tile size so
 /// scrolling back does not fill memory with full-size bitmaps.
 class GridPreviewImage extends StatelessWidget {
-  const GridPreviewImage({
-    super.key,
-    required this.mediaId,
-    required this.url,
-  });
+  const GridPreviewImage({super.key, required this.mediaId, required this.url});
 
   final int mediaId;
   final String url;
 
   @override
   Widget build(BuildContext context) {
-    final tileWidth = MediaQuery.sizeOf(context).width / 2;
-    final cachePixels = (tileWidth * MediaQuery.devicePixelRatioOf(context)).round().clamp(240, 720);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tileWidth =
+            constraints.maxWidth.isFinite && constraints.maxWidth > 0
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width / 2;
+        final cachePixels = (tileWidth * MediaQuery.devicePixelRatioOf(context))
+            .round()
+            .clamp(240, 720);
+        return _image(cachePixels);
+      },
+    );
+  }
 
+  Widget _image(int cachePixels) {
     return CachedNetworkImage(
       imageUrl: url,
       cacheManager: MediaCaches.thumbs,

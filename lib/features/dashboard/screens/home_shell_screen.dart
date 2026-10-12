@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/layout/window_layout.dart';
 import '../../auth/providers/session_controller.dart';
 import '../../events/screens/events_screen.dart';
 import '../../gallery/screens/gallery_screen.dart';
@@ -27,35 +28,79 @@ class _HomeShellScreenState extends ConsumerState<HomeShellScreen> {
     final s = session is SessionAuthenticated ? session.session : null;
 
     final tabs = <_Tab>[
-      const _Tab('Home', Icons.photo_library_outlined, Icons.photo_library, GalleryScreen()),
+      const _Tab(
+        'Home',
+        Icons.photo_library_outlined,
+        Icons.photo_library,
+        GalleryScreen(),
+      ),
       const _Tab('Events', Icons.event_outlined, Icons.event, EventsScreen()),
       if (s?.canApprove ?? false)
-        const _Tab('Review', Icons.fact_check_outlined, Icons.fact_check, ReviewScreen()),
+        const _Tab(
+          'Review',
+          Icons.fact_check_outlined,
+          Icons.fact_check,
+          ReviewScreen(),
+        ),
       if (s?.canManageInventory ?? false)
-        const _Tab('Inventory', Icons.inventory_2_outlined, Icons.inventory_2, InventoryScreen()),
+        const _Tab(
+          'Inventory',
+          Icons.inventory_2_outlined,
+          Icons.inventory_2,
+          InventoryScreen(),
+        ),
       const _Tab('More', Icons.more_horiz, Icons.more_horiz, MoreScreen()),
     ];
 
     final index = _index.clamp(0, tabs.length - 1);
+    final wide = useNavigationRail(MediaQuery.sizeOf(context).width);
+    final stack = IndexedStack(
+      index: index,
+      children: [
+        for (final tab in tabs)
+          KeyedSubtree(key: ValueKey(tab.label), child: tab.screen),
+      ],
+    );
 
     return Scaffold(
-      body: IndexedStack(
-        index: index,
-        children: [
-          for (final tab in tabs) KeyedSubtree(key: ValueKey(tab.label), child: tab.screen),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: tabs
-            .map((t) => NavigationDestination(
-                  icon: Icon(t.icon),
-                  selectedIcon: Icon(t.selectedIcon),
-                  label: t.label,
-                ))
-            .toList(),
-      ),
+      body: wide
+          ? Row(
+              children: [
+                NavigationRail(
+                  backgroundColor: Theme.of(
+                    context,
+                  ).navigationBarTheme.backgroundColor,
+                  selectedIndex: index,
+                  onDestinationSelected: (i) => setState(() => _index = i),
+                  labelType: NavigationRailLabelType.all,
+                  destinations: [
+                    for (final tab in tabs)
+                      NavigationRailDestination(
+                        icon: Icon(tab.icon),
+                        selectedIcon: Icon(tab.selectedIcon),
+                        label: Text(tab.label),
+                      ),
+                  ],
+                ),
+                Expanded(child: stack),
+              ],
+            )
+          : stack,
+      bottomNavigationBar: wide
+          ? null
+          : NavigationBar(
+              selectedIndex: index,
+              onDestinationSelected: (i) => setState(() => _index = i),
+              destinations: tabs
+                  .map(
+                    (t) => NavigationDestination(
+                      icon: Icon(t.icon),
+                      selectedIcon: Icon(t.selectedIcon),
+                      label: t.label,
+                    ),
+                  )
+                  .toList(),
+            ),
     );
   }
 }

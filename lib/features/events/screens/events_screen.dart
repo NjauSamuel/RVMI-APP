@@ -37,39 +37,44 @@ class EventsScreen extends ConsumerWidget {
               icon: const Icon(Icons.add),
               onPressed: () => _createEventDialog(context, ref),
             ),
+          if (canManageEvents)
+            PopupMenuButton<String>(
+              tooltip: 'More',
+              icon: const Icon(Icons.more_vert),
+              onSelected: (value) {
+                if (value == 'deleted') _showDeletedEvents(context);
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: 'deleted', child: Text('Deleted events')),
+              ],
+            ),
         ],
       ),
       body: events.when(
         data: (list) {
-          if (list.isEmpty && !canManageEvents) {
-            return const Center(child: Text('No events yet.'));
-          }
           return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(eventsListProvider);
-              if (canManageEvents) ref.invalidate(deletedEventsProvider);
-            },
-            child: ListView.separated(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(12),
-              itemCount: (list.isEmpty ? 1 : list.length) + (canManageEvents ? 1 : 0),
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (context, index) {
-                if (list.isEmpty && index == 0) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 48),
-                    child: Center(child: Text('No events yet.')),
-                  );
-                }
-                final eventIndex = list.isEmpty ? index - 1 : index;
-                if (eventIndex == list.length) return const _DeletedEvents();
-                final event = list[eventIndex];
-                return _EventCard(
-                  event: event,
-                  onDelete: canManageEvents ? () => _deleteEvent(context, ref, event) : null,
-                );
-              },
-            ),
+            onRefresh: () async => ref.invalidate(eventsListProvider),
+            child: list.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: const [
+                      SizedBox(height: 120),
+                      Center(child: Text('No events yet.')),
+                    ],
+                  )
+                : ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(12),
+                    itemCount: list.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final event = list[index];
+                      return _EventCard(
+                        event: event,
+                        onDelete: canManageEvents ? () => _deleteEvent(context, ref, event) : null,
+                      );
+                    },
+                  ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -126,6 +131,14 @@ class EventsScreen extends ConsumerWidget {
       );
       ref.invalidate(eventsListProvider);
     }
+  }
+
+  void _showDeletedEvents(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => const _DeletedEventsSheet(),
+    );
   }
 
   Future<void> _deleteEvent(BuildContext context, WidgetRef ref, ChurchEvent event) async {
@@ -252,33 +265,35 @@ Future<bool> confirmDeleteEvent(BuildContext context, ChurchEvent event) async {
   return deleted == true;
 }
 
-class _DeletedEvents extends ConsumerWidget {
-  const _DeletedEvents();
+class _DeletedEventsSheet extends ConsumerWidget {
+  const _DeletedEventsSheet();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final deleted = ref.watch(deletedEventsProvider);
-    return deleted.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (_, _) => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 12),
-        child: Text('Could not load deleted events.'),
-      ),
-      data: (events) {
-        if (events.isEmpty) return const SizedBox.shrink();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
-              child: Text('Deleted', style: Theme.of(context).textTheme.titleMedium),
-            ),
-            for (final event in events)
-              Card(
-                child: ListTile(
+    return SafeArea(
+      child: deleted.when(
+        loading: () => const Padding(
+          padding: EdgeInsets.symmetric(vertical: 32),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        error: (_, _) => const Padding(
+          padding: EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Text('Could not load deleted events.'),
+        ),
+        data: (events) {
+          if (events.isEmpty) {
+            return const Padding(
+              padding: EdgeInsets.fromLTRB(20, 8, 20, 24),
+              child: Text('No deleted events.'),
+            );
+          }
+          return ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+            children: [
+              for (final event in events)
+                ListTile(
                   title: Text(event.title),
                   subtitle: Text('${event.mediaCount} item(s)'),
                   trailing: TextButton(
@@ -290,10 +305,10 @@ class _DeletedEvents extends ConsumerWidget {
                     child: const Text('Restore'),
                   ),
                 ),
-              ),
-          ],
-        );
-      },
+            ],
+          );
+        },
+      ),
     );
   }
 }

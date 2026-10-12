@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/layout/window_layout.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../gallery/widgets/photo_date_sheet.dart';
 import '../providers/upload_repository.dart';
@@ -16,7 +17,12 @@ import '../upload_prepare.dart';
 enum _PickedKind { image, video }
 
 class _PickedFile {
-  _PickedFile(this.file, this.kind, {this.frame = const MediaFrame(), this.posterBase64});
+  _PickedFile(
+    this.file,
+    this.kind, {
+    this.frame = const MediaFrame(),
+    this.posterBase64,
+  });
   final File file;
   final _PickedKind kind;
   final MediaFrame frame;
@@ -61,15 +67,20 @@ class _UploadPickerScreenState extends ConsumerState<UploadPickerScreen> {
           skippedRaw = true;
           continue;
         }
-        final isVideo = f.path.toLowerCase().endsWith('.mp4') ||
+        final isVideo =
+            f.path.toLowerCase().endsWith('.mp4') ||
             f.path.toLowerCase().endsWith('.mov');
-        _picked.add(_PickedFile(file, isVideo ? _PickedKind.video : _PickedKind.image));
+        _picked.add(
+          _PickedFile(file, isVideo ? _PickedKind.video : _PickedKind.image),
+        );
       }
     });
     if (skippedRaw && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Export a JPEG from your editor. Raw camera files stay on the device.'),
+          content: Text(
+            'Export a JPEG from your editor. Raw camera files stay on the device.',
+          ),
         ),
       );
     }
@@ -88,7 +99,9 @@ class _UploadPickerScreenState extends ConsumerState<UploadPickerScreen> {
     var preparing = true;
 
     try {
-      final videoCount = _picked.where((item) => item.kind == _PickedKind.video).length;
+      final videoCount = _picked
+          .where((item) => item.kind == _PickedKind.video)
+          .length;
       var videoIndex = 0;
       var photoIndex = 0;
       final photoCount = _picked.length - videoCount;
@@ -97,16 +110,20 @@ class _UploadPickerScreenState extends ConsumerState<UploadPickerScreen> {
         if (picked.kind == _PickedKind.image) {
           photoIndex++;
           if (mounted) {
-            setState(() => _status = 'Preparing photo $photoIndex/$photoCount...');
+            setState(
+              () => _status = 'Preparing photo $photoIndex/$photoCount...',
+            );
           }
           final file = await capPhotoLongEdge(picked.file);
           final preview = await photoPreviewJpeg(file);
-          prepared.add(_PickedFile(
-            file,
-            _PickedKind.image,
-            frame: await readPhotoFrame(file),
-            posterBase64: preview == null ? null : base64Encode(preview),
-          ));
+          prepared.add(
+            _PickedFile(
+              file,
+              _PickedKind.image,
+              frame: await readPhotoFrame(file),
+              posterBase64: preview == null ? null : base64Encode(preview),
+            ),
+          );
         } else {
           videoIndex++;
           late final File file;
@@ -114,18 +131,29 @@ class _UploadPickerScreenState extends ConsumerState<UploadPickerScreen> {
             file = picked.file;
           } else {
             if (mounted) {
-              setState(() => _status = 'Preparing video $videoIndex/$videoCount...');
+              setState(
+                () => _status = 'Preparing video $videoIndex/$videoCount...',
+              );
             }
             file = await compressVideoTo720p(
               picked.file,
               onProgress: (progress) {
                 if (!mounted) return;
                 final percent = progress.round().clamp(0, 100);
-                setState(() => _status = 'Preparing video $videoIndex/$videoCount... $percent%');
+                setState(
+                  () => _status =
+                      'Preparing video $videoIndex/$videoCount... $percent%',
+                );
               },
             );
           }
-          prepared.add(_PickedFile(file, _PickedKind.video, frame: await readVideoFrame(file)));
+          prepared.add(
+            _PickedFile(
+              file,
+              _PickedKind.video,
+              frame: await readVideoFrame(file),
+            ),
+          );
         }
       }
 
@@ -134,19 +162,26 @@ class _UploadPickerScreenState extends ConsumerState<UploadPickerScreen> {
 
       final presigned = await repo.presign(
         files: prepared.map((p) => p.file).toList(),
-        types: prepared.map((p) => p.kind == _PickedKind.video ? 'video' : 'image').toList(),
+        types: prepared
+            .map((p) => p.kind == _PickedKind.video ? 'video' : 'image')
+            .toList(),
         eventId: widget.eventId,
-        takenAt: _photoDate == null ? null : DateFormat('yyyy-MM-dd').format(_photoDate!),
+        takenAt: _photoDate == null
+            ? null
+            : DateFormat('yyyy-MM-dd').format(_photoDate!),
       );
 
       for (var i = 0; i < presigned.length; i++) {
         final picked = prepared[i];
         final upload = presigned[i];
-        final contentType = picked.kind == _PickedKind.video ? 'video/mp4' : 'image/jpeg';
+        final contentType = picked.kind == _PickedKind.video
+            ? 'video/mp4'
+            : 'image/jpeg';
 
         await repo.putFile(upload.uploadUrl, picked.file, contentType);
 
-        final poster = picked.posterBase64 ??
+        final poster =
+            picked.posterBase64 ??
             (picked.kind == _PickedKind.video
                 ? await _posterFrameBase64(picked.file, picked.frame)
                 : null);
@@ -163,7 +198,11 @@ class _UploadPickerScreenState extends ConsumerState<UploadPickerScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Uploaded. An approver will review and tag before it goes live.')),
+          const SnackBar(
+            content: Text(
+              'Uploaded. An approver will review and tag before it goes live.',
+            ),
+          ),
         );
         context.pop();
       }
@@ -172,7 +211,9 @@ class _UploadPickerScreenState extends ConsumerState<UploadPickerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              preparing ? 'Could not prepare a file for upload.' : 'Upload did not finish.',
+              preparing
+                  ? 'Could not prepare a file for upload.'
+                  : 'Upload did not finish.',
             ),
           ),
         );
@@ -236,41 +277,56 @@ class _UploadPickerScreenState extends ConsumerState<UploadPickerScreen> {
                       label: const Text('Choose photos & videos'),
                     ),
                   )
-                : GridView.builder(
-                    padding: const EdgeInsets.all(8),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 4,
-                      mainAxisSpacing: 4,
-                    ),
-                    itemCount: _picked.length,
-                    itemBuilder: (context, index) {
-                      final picked = _picked[index];
-                      return Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: picked.kind == _PickedKind.image
-                                ? Image.file(picked.file, fit: BoxFit.cover)
-                                : Container(
-                                    color: Colors.black87,
-                                    child: const Icon(Icons.videocam, color: Colors.white),
-                                  ),
-                          ),
-                          Positioned(
-                            top: 2,
-                            right: 2,
-                            child: GestureDetector(
-                              onTap: () => setState(() => _picked.removeAt(index)),
-                              child: const CircleAvatar(
-                                radius: 11,
-                                backgroundColor: Colors.black54,
-                                child: Icon(Icons.close, size: 14, color: Colors.white),
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final width = constraints.maxWidth.isFinite
+                          ? constraints.maxWidth
+                          : MediaQuery.sizeOf(context).width;
+                      return GridView.builder(
+                        padding: const EdgeInsets.all(8),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: uploadColumnCount(width),
+                          crossAxisSpacing: 4,
+                          mainAxisSpacing: 4,
+                        ),
+                        itemCount: _picked.length,
+                        itemBuilder: (context, index) {
+                          final picked = _picked[index];
+                          return Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: picked.kind == _PickedKind.image
+                                    ? Image.file(picked.file, fit: BoxFit.cover)
+                                    : Container(
+                                        color: Colors.black87,
+                                        child: const Icon(
+                                          Icons.videocam,
+                                          color: Colors.white,
+                                        ),
+                                      ),
                               ),
-                            ),
-                          ),
-                        ],
+                              Positioned(
+                                top: 2,
+                                right: 2,
+                                child: GestureDetector(
+                                  onTap: () =>
+                                      setState(() => _picked.removeAt(index)),
+                                  child: const CircleAvatar(
+                                    radius: 11,
+                                    backgroundColor: Colors.black54,
+                                    child: Icon(
+                                      Icons.close,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       );
                     },
                   ),
@@ -286,12 +342,17 @@ class _UploadPickerScreenState extends ConsumerState<UploadPickerScreen> {
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.event_outlined),
                       title: Text(
-                        _photoDate == null ? 'Upload date' : DateFormat.yMMMd().format(_photoDate!),
+                        _photoDate == null
+                            ? 'Upload date'
+                            : DateFormat.yMMMd().format(_photoDate!),
                       ),
                       subtitle: const Text('Photo date'),
                       enabled: !_uploading,
                       onTap: () async {
-                        final choice = await showPhotoDateSheet(context, current: _photoDate);
+                        final choice = await showPhotoDateSheet(
+                          context,
+                          current: _photoDate,
+                        );
                         if (choice == null || !mounted) return;
                         setState(() {
                           _photoDate = choice.useUploadDate ? null : choice.day;
@@ -309,7 +370,9 @@ class _UploadPickerScreenState extends ConsumerState<UploadPickerScreen> {
                       if (_picked.isNotEmpty) const SizedBox(width: 12),
                       Expanded(
                         child: FilledButton(
-                          onPressed: (_picked.isEmpty || _uploading) ? null : _upload,
+                          onPressed: (_picked.isEmpty || _uploading)
+                              ? null
+                              : _upload,
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.brand600,
                             foregroundColor: Colors.white,

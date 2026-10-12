@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
+import '../../../core/layout/window_layout.dart';
 import '../models/media_item.dart';
 import 'media_tile.dart';
 
@@ -14,7 +15,7 @@ class MediaGrid extends StatefulWidget {
     required this.onOpen,
     this.onNearEnd,
     this.loadingMore = false,
-    this.crossAxisCount = 2,
+    this.crossAxisCount,
     this.shrinkWrap = false,
     this.physics,
   });
@@ -23,7 +24,10 @@ class MediaGrid extends StatefulWidget {
   final void Function(MediaItem item, int index) onOpen;
   final VoidCallback? onNearEnd;
   final bool loadingMore;
-  final int crossAxisCount;
+
+  /// When null, the column count follows the available width. Phone widths
+  /// stay at 2.
+  final int? crossAxisCount;
   final bool shrinkWrap;
   final ScrollPhysics? physics;
 
@@ -57,13 +61,25 @@ class _MediaGridState extends State<MediaGrid> {
 
   @override
   Widget build(BuildContext context) {
-    final extra = widget.loadingMore ? widget.crossAxisCount : 0;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final columns = widget.crossAxisCount ?? photoColumnCount(width);
+        return _grid(columns);
+      },
+    );
+  }
+
+  Widget _grid(int columns) {
+    final extra = widget.loadingMore ? columns : 0;
     return MasonryGridView.count(
       controller: _controller,
       shrinkWrap: widget.shrinkWrap,
       physics: widget.physics ?? const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
-      crossAxisCount: widget.crossAxisCount,
+      crossAxisCount: columns,
       mainAxisSpacing: 4,
       crossAxisSpacing: 4,
       itemCount: widget.items.length + extra,
