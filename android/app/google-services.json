@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "430666920407",
+    "project_id": "rvmi-media",
+    "storage_bucket": "rvmi-media.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:430666920407:android:cf60289b23d04e7ca25b92",
+        "android_client_info": {
+          "package_name": "com.rvmi.rvmi_media"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBXYIuwxmFWOmPBCTgjkpYElwQ2dp7f8pc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
