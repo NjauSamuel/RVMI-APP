@@ -53,14 +53,15 @@ List<UploadMonthSection> groupByUploadMonth(
 bool _sameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
 
-/// `Today`, `Yesterday`, or an ordinal day such as `12th Oct`.
+/// `Today`, `Yesterday`, or a weekday plus ordinal such as `Sat, 10th Oct`.
 String dayDividerLabel(DateTime at, DateTime now) {
   final local = at.toLocal();
   final day = DateTime(local.year, local.month, local.day);
   final today = DateTime(now.year, now.month, now.day);
   if (day == today) return 'Today';
   if (day == today.subtract(const Duration(days: 1))) return 'Yesterday';
-  return '${_ordinal(local.day)} ${DateFormat('MMM').format(local)}';
+  final weekday = DateFormat('EEE').format(local);
+  return '$weekday, ${_ordinal(local.day)} ${DateFormat('MMM').format(local)}';
 }
 
 String _ordinal(int day) {
