@@ -5,7 +5,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_compress/video_compress.dart';
 
-const photoLongEdge = 2048;
+const photoLongEdge = 4096;
 const photoPreviewEdge = 480;
 const _maxVideoEdge = 1280;
 const _maxVideoMbps = 2.5;
