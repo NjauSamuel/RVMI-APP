@@ -278,13 +278,10 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
       prepared = await _materializeFullFile(item!);
       if (!mounted) return;
 
-      // Specify 'RVMI-Media' as the album name so it creates/saves into DCIM/RVMI-Media
-      const albumName = 'RVMI-Media';
-
       if (item.isVideo) {
-        await Gal.putVideo(prepared.path, album: albumName);
+        await Gal.putVideo(prepared.path);
       } else {
-        await Gal.putImage(prepared.path, album: albumName);
+        await Gal.putImage(prepared.path);
       }
       if (!mounted) return;
       
@@ -292,6 +289,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('$kind saved to your gallery.'),
+          duration: const Duration(seconds: 4),
           action: SnackBarAction(label: 'Open', onPressed: Gal.open),
         ),
       );
