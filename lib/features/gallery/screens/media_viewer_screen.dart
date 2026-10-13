@@ -286,13 +286,21 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
       if (!mounted) return;
       
       final kind = item.isVideo ? 'Video' : 'Photo';
-      ScaffoldMessenger.of(context).showSnackBar(
+      
+      // Clear any existing snackbars and show the new one with a 4-second timer
+      ScaffoldMessenger.of(context).clearSnackBars();
+      final controller = ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('$kind saved to your gallery.'),
           duration: const Duration(seconds: 4),
           action: SnackBarAction(label: 'Open', onPressed: Gal.open),
         ),
       );
+
+      // Force-close the snackbar after 4 seconds (overrides Material default when action is present)
+      Future.delayed(const Duration(seconds: 4), () {
+        controller.close();
+      });
     } on GalException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
