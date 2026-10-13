@@ -7,6 +7,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gal/gal.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:share_plus/share_plus.dart';
@@ -43,8 +45,8 @@ Future<void> openMediaViewer(
 }
 
 /// Full-screen viewer. Loads the full-resolution image/video lazily and
-/// shares the actual file rather than a link, since media stays scoped to
-/// signed-in users. Swipe up or down to move through the list that was open.
+/// shares or saves the actual file rather than a link, since media stays
+/// scoped to signed-in users. Swipe up or down to move through the list.
 class MediaViewerScreen extends ConsumerStatefulWidget {
   const MediaViewerScreen({
     super.key,
@@ -69,6 +71,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
   int _index = 0;
   bool _bootstrapping = true;
   bool _sharing = false;
+  bool _downloading = false;
   String? _error;
   final _shareButtonKey = GlobalKey();
   bool _zoomed = false;
@@ -219,21 +222,12 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
 
   Future<void> _shareAsFile() async {
     final item = _current;
-    if (item?.fullUrl == null || _sharing) return;
+    if (item?.fullUrl == null || _sharing || _downloading) return;
 
     setState(() => _sharing = true);
-    String? path;
+    File? prepared;
     try {
-      final dio = Dio(
-        BaseOptions(
-          connectTimeout: const Duration(seconds: 15),
-          receiveTimeout: const Duration(minutes: 2),
-        ),
-      );
-      final dir = await getTemporaryDirectory();
-      final extension = item!.isVideo ? 'mp4' : 'jpg';
-      path = '${dir.path}/rvmi_media_${item.id}.$extension';
-      await dio.download(item.fullUrl!, path);
+      prepared = await _materializeFullFile(item!);
       if (!mounted) return;
 
       final box = _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
@@ -244,9 +238,9 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
         ShareParams(
           files: [
             XFile(
-              path,
-              mimeType: item.isVideo ? 'video/mp4' : 'image/jpeg',
-              name: 'rvmi_media_${item.id}.$extension',
+              prepared.path,
+              mimeType: _mimeForExtension(_extensionOf(prepared.path), video: item.isVideo),
+              name: p.basename(prepared.path),
             ),
           ],
           sharePositionOrigin: origin,
@@ -259,12 +253,90 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
         );
       }
     } finally {
-      if (path != null) {
-        final file = File(path);
-        if (await file.exists()) await file.delete();
-      }
+      await _deleteIfExists(prepared);
       if (mounted) setState(() => _sharing = false);
     }
+  }
+
+  Future<void> _downloadToGallery() async {
+    final item = _current;
+    if (item?.fullUrl == null || _sharing || _downloading) return;
+
+    setState(() => _downloading = true);
+    File? prepared;
+    try {
+      final granted = await Gal.requestAccess();
+      if (!granted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Allow photo access to save this to your gallery.')),
+          );
+        }
+        return;
+      }
+
+      prepared = await _materializeFullFile(item!);
+      if (!mounted) return;
+
+      if (item.isVideo) {
+        await Gal.putVideo(prepared.path);
+      } else {
+        await Gal.putImage(prepared.path);
+      }
+      if (!mounted) return;
+      final kind = item.isVideo ? 'Video' : 'Photo';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$kind saved to your gallery.'),
+          action: SnackBarAction(label: 'Open', onPressed: Gal.open),
+        ),
+      );
+    } on GalException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_galleryErrorMessage(error))),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save this file to your gallery.')),
+        );
+      }
+    } finally {
+      await _deleteIfExists(prepared);
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  /// The bytes already on screen when the full photo is cached, otherwise
+  /// the original file from [MediaItem.fullUrl]. Never re-encodes.
+  Future<File> _materializeFullFile(MediaItem item) async {
+    final dir = await getTemporaryDirectory();
+    if (!item.isVideo) {
+      final cached = await MediaCaches.fullPhotos.getFileFromCache(MediaCaches.fullKey(item.id));
+      if (cached != null && await cached.file.exists()) {
+        final ext = _extensionOf(cached.file.path) ?? _extensionForItem(item);
+        final dest = File('${dir.path}/rvmi_media_${item.id}.$ext');
+        return cached.file.copy(dest.path);
+      }
+    }
+
+    final fallbackExt = _extensionForItem(item);
+    final staging = File('${dir.path}/rvmi_media_${item.id}.download');
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(minutes: 2),
+      ),
+    );
+    final response = await dio.download(item.fullUrl!, staging.path);
+    final ext = _extensionFromContentType(response.headers.value('content-type')) ??
+        _extensionFromUrl(item.fullUrl) ??
+        fallbackExt;
+    final dest = File('${dir.path}/rvmi_media_${item.id}.$ext');
+    if (await dest.exists()) await dest.delete();
+    return staging.rename(dest.path);
   }
 
   bool _isFavorite(MediaItem item) => _favorite[item.id] ?? item.isFavorite;
@@ -337,6 +409,18 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
         actions: [
           if (item != null)
             IconButton(
+              tooltip: 'Download',
+              icon: _downloading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.download),
+              onPressed: (_downloading || _sharing) ? null : _downloadToGallery,
+            ),
+          if (item != null)
+            IconButton(
               tooltip: _isFavorite(item) ? 'Remove from saved' : 'Save',
               icon: Icon(_isFavorite(item) ? Icons.bookmark : Icons.bookmark_border),
               onPressed: _toggleFavorite,
@@ -349,6 +433,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
           if (item != null)
             IconButton(
               key: _shareButtonKey,
+              tooltip: 'Share',
               icon: _sharing
                   ? const SizedBox(
                       width: 18,
@@ -356,7 +441,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.share),
-              onPressed: _sharing ? null : _shareAsFile,
+              onPressed: (_sharing || _downloading) ? null : _shareAsFile,
             ),
         ],
       ),
@@ -889,4 +974,65 @@ Widget _cachedStandIn(MediaItem item, {bool playMark = false}) {
       ],
     ),
   );
+}
+
+Future<void> _deleteIfExists(File? file) async {
+  if (file == null) return;
+  if (await file.exists()) await file.delete();
+}
+
+String? _extensionOf(String path) {
+  final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
+  if (ext.isEmpty || ext == 'download' || ext == 'bin') return null;
+  return ext == 'jpeg' ? 'jpg' : ext;
+}
+
+String _extensionForItem(MediaItem item) {
+  if (item.isVideo) return 'mp4';
+  return _extensionFromUrl(item.fullUrl) ?? 'jpg';
+}
+
+String? _extensionFromUrl(String? url) {
+  if (url == null || url.isEmpty) return null;
+  final path = Uri.tryParse(url)?.path ?? url;
+  return _extensionOf(path);
+}
+
+String? _extensionFromContentType(String? contentType) {
+  if (contentType == null) return null;
+  final type = contentType.split(';').first.trim().toLowerCase();
+  return switch (type) {
+    'image/jpeg' => 'jpg',
+    'image/png' => 'png',
+    'image/webp' => 'webp',
+    'image/gif' => 'gif',
+    'image/heic' => 'heic',
+    'image/heif' => 'heif',
+    'video/mp4' => 'mp4',
+    'video/quicktime' => 'mov',
+    _ => null,
+  };
+}
+
+String _mimeForExtension(String? extension, {required bool video}) {
+  return switch (extension) {
+    'png' => 'image/png',
+    'webp' => 'image/webp',
+    'gif' => 'image/gif',
+    'heic' => 'image/heic',
+    'heif' => 'image/heif',
+    'mp4' => 'video/mp4',
+    'mov' => 'video/quicktime',
+    'jpg' || 'jpeg' => 'image/jpeg',
+    _ => video ? 'video/mp4' : 'image/jpeg',
+  };
+}
+
+String _galleryErrorMessage(GalException error) {
+  return switch (error.type) {
+    GalExceptionType.accessDenied => 'Allow photo access to save this to your gallery.',
+    GalExceptionType.notEnoughSpace => 'Not enough storage to save this file.',
+    GalExceptionType.notSupportedFormat => 'This file type cannot be saved to the gallery.',
+    _ => 'Could not save this file to your gallery.',
+  };
 }
