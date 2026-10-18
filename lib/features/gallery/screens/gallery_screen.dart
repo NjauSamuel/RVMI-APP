@@ -16,6 +16,11 @@ import '../widgets/month_feed.dart';
 import '../widgets/photo_date_sheet.dart';
 import 'media_viewer_screen.dart';
 
+// Provider to load all tags for active filter chip name resolution
+final allTagsProvider = FutureProvider.autoDispose((ref) {
+  return ref.watch(favoritesRepositoryProvider).listTags();
+});
+
 /// The home timeline: everything the member is allowed to see, newest
 /// first, grouped by photo month.
 class GalleryScreen extends ConsumerStatefulWidget {
@@ -47,6 +52,10 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     final canManagePeople = session is SessionAuthenticated && session.session.canManagePeople;
     final canApprove = session is SessionAuthenticated && session.session.canApprove;
     final canSelect = canManagePeople || canApprove;
+    
+    // Pre-load tags and people into memory cache so the active filters rail can instantly read names
+    ref.watch(myFavoriteTagsProvider);
+    ref.watch(allTagsProvider);
     
     final anyoneTrained = ref.watch(peopleListProvider).maybeWhen(
           data: (people) => people.any(
@@ -490,18 +499,37 @@ class _ActiveFiltersRail extends ConsumerWidget {
 
       chips.add(_FilterChip(
         label: label,
-        onDelete: () => onRemove(GalleryFeedFilter(eventId: filter.eventId, tagId: filter.tagId, type: filter.type)),
+        onDelete: () => onRemove(GalleryFeedFilter(
+          eventId: filter.eventId,
+          tagId: filter.tagId,
+          type: filter.type,
+        )),
       ));
     }
 
-        if (filter.tagId != null) {
-      final tag = ref.watch(myFavoriteTagsProvider).maybeWhen(
-            data: (tags) => tags.where((t) => t.id == filter.tagId).firstOrNull,
-            orElse: () => null,
+    if (filter.tagId != null) {
+      final tagLabel = ref.watch(allTagsProvider).maybeWhen(
+            data: (tags) {
+              final match = tags.where((t) => t.id == filter.tagId).firstOrNull;
+              return match != null ? 'Tag: ${match.name}' : 'Tag: ${filter.tagId}';
+            },
+            orElse: () => ref.watch(myFavoriteTagsProvider).maybeWhen(
+                  data: (tags) {
+                    final match = tags.where((t) => t.id == filter.tagId).firstOrNull;
+                    return match != null ? 'Tag: ${match.name}' : 'Tag: ${filter.tagId}';
+                  },
+                  orElse: () => 'Tag: ${filter.tagId}',
+                ),
           );
+
       chips.add(_FilterChip(
-        label: tag?.name ?? 'Tag: ${filter.tagId}',
-        onDelete: () => onRemove(GalleryFeedFilter(eventId: filter.eventId, from: filter.from, to: filter.to, type: filter.type)),
+        label: tagLabel,
+        onDelete: () => onRemove(GalleryFeedFilter(
+          eventId: filter.eventId,
+          from: filter.from,
+          to: filter.to,
+          type: filter.type,
+        )),
       ));
     }
 
@@ -513,14 +541,24 @@ class _ActiveFiltersRail extends ConsumerWidget {
       final event = events?.where((e) => e.id == filter.eventId).firstOrNull;
       chips.add(_FilterChip(
         label: event?.title ?? 'Event: ${filter.eventId}',
-        onDelete: () => onRemove(GalleryFeedFilter(tagId: filter.tagId, from: filter.from, to: filter.to, type: filter.type)),
+        onDelete: () => onRemove(GalleryFeedFilter(
+          tagId: filter.tagId,
+          from: filter.from,
+          to: filter.to,
+          type: filter.type,
+        )),
       ));
     }
 
     if (filter.type != null) {
       chips.add(_FilterChip(
         label: filter.type == 'image' ? 'Photos' : 'Videos',
-        onDelete: () => onRemove(GalleryFeedFilter(eventId: filter.eventId, tagId: filter.tagId, from: filter.from, to: filter.to)),
+        onDelete: () => onRemove(GalleryFeedFilter(
+          eventId: filter.eventId,
+          tagId: filter.tagId,
+          from: filter.from,
+          to: filter.to,
+        )),
       ));
     }
 

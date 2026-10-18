@@ -9,8 +9,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../events/models/event.dart';
 import '../../events/providers/events_repository.dart';
 import '../../favorites/models/tag.dart';
-import '../../favorites/providers/favorites_repository.dart';
-import '../providers/gallery_feed_controller.dart';
 
 Future<GalleryFeedFilter?> showGalleryFilterSheet(
   BuildContext context, {
@@ -127,7 +125,7 @@ class _GalleryFilterSheetState extends ConsumerState<GalleryFilterSheet> {
                     ),
                   ],
                   const SizedBox(height: 20),
-                                    const _SectionLabel('Tag'),
+                  const _SectionLabel('Tag'),
                   FutureBuilder<List<Tag>>(
                     future: _tags,
                     builder: (context, snapshot) {
@@ -210,22 +208,6 @@ class _GalleryFilterSheetState extends ConsumerState<GalleryFilterSheet> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _selectionChip<T>({
-    required String label,
-    required T value,
-    required T groupValue,
-    required ValueChanged<T> onSelected,
-  }) {
-    final selected = value == groupValue;
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (bool s) {
-        if (s) onSelected(value);
-      },
     );
   }
 
