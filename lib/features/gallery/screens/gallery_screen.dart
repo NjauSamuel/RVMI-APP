@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/session_controller.dart';
-import '../../favorites/widgets/for_you_rail.dart';
+import '../../events/providers/events_repository.dart';
+import '../../favorites/providers/favorites_repository.dart';
 import '../../people/providers/people_repository.dart';
 import '../../review/providers/review_repository.dart';
 import '../models/media_item.dart';
@@ -45,8 +47,8 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     final canManagePeople = session is SessionAuthenticated && session.session.canManagePeople;
     final canApprove = session is SessionAuthenticated && session.session.canApprove;
     final canSelect = canManagePeople || canApprove;
-    final anyoneTrained = canManagePeople &&
-        ref.watch(peopleListProvider).maybeWhen(
+    
+    final anyoneTrained = ref.watch(peopleListProvider).maybeWhen(
           data: (people) => people.any(
             (person) => person.indexedInRekognition || person.referenceFaceCount > 0,
           ),
@@ -60,11 +62,11 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
         _clearSelection();
       },
       child: Scaffold(
-        body: Column(
-          children: [
-            SafeArea(
-              bottom: false,
-              child: ValueListenableBuilder<double>(
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              ValueListenableBuilder<double>(
                 valueListenable: _headerHide,
                 builder: (context, hide, child) {
                   final extent = _headerExtent();
@@ -87,74 +89,77 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                       canApprove: canApprove,
                       canManagePeople: canManagePeople,
                     ),
-                    const ForYouRail(),
+                    _ActiveFiltersRail(
+                      filter: _filter,
+                      onRemove: (newFilter) => setState(() => _filter = newFilter),
+                    ),
                   ],
                 ),
               ),
-            ),
-            if (_selecting && canManagePeople && _selected.length > 5)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? AppColors.brand800
-                        : AppColors.brand100,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    child: Text(
-                      'Name this person uses 1 to 5 photos. Tag can use every selected photo.',
+              if (_selecting && canManagePeople && _selected.length > 5)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? AppColors.brand800
+                          : AppColors.brand100,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      child: Text(
+                        'Name this person uses 1 to 5 photos. Tag can use every selected photo.',
+                      ),
                     ),
                   ),
                 ),
-              ),
-            Expanded(
-              child: NotificationListener<ScrollNotification>(
-                onNotification: _onFeedScroll,
-                child: RefreshIndicator(
-                  onRefresh: () => ref.read(galleryFeedControllerProvider(_filter).notifier).refresh(),
-                  child: feed.loading && feed.items.isEmpty
-                      ? const Center(child: CircularProgressIndicator())
-                      : feed.items.isEmpty
-                          ? ListView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              children: [
-                                SizedBox(
-                                  height: MediaQuery.sizeOf(context).height * 0.6,
-                                  child: Center(
-                                    child: Text(
-                                      feed.error ??
-                                          (_filter.hasConstraints
-                                              ? 'Nothing matches this filter.'
-                                              : 'No photos or videos yet.'),
+              Expanded(
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: _onFeedScroll,
+                  child: RefreshIndicator(
+                    onRefresh: () => ref.read(galleryFeedControllerProvider(_filter).notifier).refresh(),
+                    child: feed.loading && feed.items.isEmpty
+                        ? const Center(child: CircularProgressIndicator())
+                        : feed.items.isEmpty
+                            ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                children: [
+                                  SizedBox(
+                                    height: MediaQuery.sizeOf(context).height * 0.6,
+                                    child: Center(
+                                      child: Text(
+                                        feed.error ??
+                                            (_filter.hasConstraints
+                                                ? 'Nothing matches this filter.'
+                                                : 'No photos or videos yet.'),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            )
-                          : MonthGroupedFeed(
-                              key: ValueKey(_filter),
-                              items: feed.items,
-                              loadingMore: feed.loadingMore,
-                              selecting: _selecting,
-                              selectVideos: canApprove,
-                              selectedIds: _selected,
-                              onNearEnd: () =>
-                                  ref.read(galleryFeedControllerProvider(_filter).notifier).loadMore(),
-                              onOpen: (item, index) => openMediaViewer(
-                                context,
+                                ],
+                              )
+                            : MonthGroupedFeed(
+                                key: ValueKey(_filter),
                                 items: feed.items,
-                                index: index,
+                                loadingMore: feed.loadingMore,
+                                selecting: _selecting,
+                                selectVideos: canApprove,
+                                selectedIds: _selected,
+                                onNearEnd: () =>
+                                    ref.read(galleryFeedControllerProvider(_filter).notifier).loadMore(),
+                                onOpen: (item, index) => openMediaViewer(
+                                  context,
+                                  items: feed.items,
+                                  index: index,
+                                ),
+                                onToggle: canSelect ? _toggle : null,
+                                onLongPress: canSelect ? _startSelection : null,
                               ),
-                              onToggle: canSelect ? _toggle : null,
-                              onLongPress: canSelect ? _startSelection : null,
-                            ),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -166,8 +171,6 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     return box.size.height;
   }
 
-  /// The logo and chips move with the finger. A short drag hides only as
-  /// far as the finger moved. Naming photos keeps them fully open.
   bool _onFeedScroll(ScrollNotification notification) {
     if (notification.metrics.axis != Axis.vertical) return false;
     if (_selecting) {
@@ -447,6 +450,111 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
 
   void _message(String text) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+}
+
+class _ActiveFiltersRail extends ConsumerWidget {
+  const _ActiveFiltersRail({required this.filter, required this.onRemove});
+
+  final GalleryFeedFilter filter;
+  final ValueChanged<GalleryFeedFilter> onRemove;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!filter.hasConstraints) return const SizedBox.shrink();
+
+    final chips = <Widget>[];
+
+    if (filter.from != null || filter.to != null) {
+      String label = 'Custom Range';
+      final now = DateTime.now();
+      final startOfMonth = DateTime(now.year, now.month, 1).toUtc().toIso8601String().split('T')[0];
+      final startOf3Months = DateTime(now.year, now.month - 2, 1).toUtc().toIso8601String().split('T')[0];
+      final startOfYear = DateTime(now.year, 1, 1).toUtc().toIso8601String().split('T')[0];
+
+      final fromDate = filter.from?.split('T')[0];
+
+      if (fromDate == startOfMonth) {
+        label = 'This month';
+      } else if (fromDate == startOf3Months) {
+        label = 'Last 3 months';
+      } else if (fromDate == startOfYear) {
+        label = 'This year';
+      } else if (filter.from != null && filter.to != null) {
+        try {
+          final f = DateFormat.yMMMd().format(DateTime.parse(filter.from!).toLocal());
+          final t = DateFormat.yMMMd().format(DateTime.parse(filter.to!).toLocal());
+          label = '$f - $t';
+        } catch (_) {}
+      }
+
+      chips.add(_FilterChip(
+        label: label,
+        onDelete: () => onRemove(GalleryFeedFilter(eventId: filter.eventId, tagId: filter.tagId, type: filter.type)),
+      ));
+    }
+
+        if (filter.tagId != null) {
+      final tag = ref.watch(myFavoriteTagsProvider).maybeWhen(
+            data: (tags) => tags.where((t) => t.id == filter.tagId).firstOrNull,
+            orElse: () => null,
+          );
+      chips.add(_FilterChip(
+        label: tag?.name ?? 'Tag: ${filter.tagId}',
+        onDelete: () => onRemove(GalleryFeedFilter(eventId: filter.eventId, from: filter.from, to: filter.to, type: filter.type)),
+      ));
+    }
+
+    if (filter.eventId != null) {
+      final events = ref.watch(eventsListProvider).maybeWhen(
+            data: (events) => events,
+            orElse: () => null,
+          );
+      final event = events?.where((e) => e.id == filter.eventId).firstOrNull;
+      chips.add(_FilterChip(
+        label: event?.title ?? 'Event: ${filter.eventId}',
+        onDelete: () => onRemove(GalleryFeedFilter(tagId: filter.tagId, from: filter.from, to: filter.to, type: filter.type)),
+      ));
+    }
+
+    if (filter.type != null) {
+      chips.add(_FilterChip(
+        label: filter.type == 'image' ? 'Photos' : 'Videos',
+        onDelete: () => onRemove(GalleryFeedFilter(eventId: filter.eventId, tagId: filter.tagId, from: filter.from, to: filter.to)),
+      ));
+    }
+
+    if (chips.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        itemCount: chips.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) => chips[index],
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({required this.label, required this.onDelete});
+  final String label;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      deleteIcon: const Icon(Icons.close, size: 14),
+      onDeleted: onDelete,
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      labelPadding: const EdgeInsets.only(left: 8, right: 4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    );
   }
 }
 

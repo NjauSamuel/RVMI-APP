@@ -24,6 +24,8 @@ class FavoritesRepository {
         .toList();
   }
 
+  Future<List<Tag>> listTags() => searchTags();
+
   Future<List<Tag>> searchTags({String? kind, String? search}) async {
     final client = ref.read(apiClientProvider);
     final response = await client.get<Map<String, dynamic>>(

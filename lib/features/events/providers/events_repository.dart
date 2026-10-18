@@ -138,7 +138,7 @@ final eventsRepositoryProvider = Provider<EventsRepository>((ref) {
 });
 
 final eventsListProvider = FutureProvider<List<ChurchEvent>>((ref) {
-  return ref.read(eventsRepositoryProvider).list();
+  return ref.watch(eventsRepositoryProvider).listAll();
 });
 
 final deletedEventsProvider = FutureProvider<List<ChurchEvent>>((ref) {

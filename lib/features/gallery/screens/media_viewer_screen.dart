@@ -183,12 +183,11 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
     unawaited(_prefetchAhead());
   }
 
-  /// Download the next photo in the direction of travel once the current
-  /// photo is on screen. Videos are left until that page is current.
-  Future<void> _prefetchAhead() async {
+    Future<void> _prefetchAhead() async {
     if (!mounted || _items.isEmpty || _prefetchingId != null) return;
     final current = _items[_index];
     if (current.isVideo || !_fullReady.contains(current.id)) return;
+
     final nextIndex = _index + _travel;
     if (nextIndex < 0 || nextIndex >= _items.length) return;
     final next = _items[nextIndex];
@@ -287,7 +286,6 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
       
       final kind = item.isVideo ? 'Video' : 'Photo';
       
-      // Clear any existing snackbars and show the new one with a 4-second timer
       ScaffoldMessenger.of(context).clearSnackBars();
       final controller = ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -297,7 +295,6 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
         ),
       );
 
-      // Force-close the snackbar after 4 seconds (overrides Material default when action is present)
       Future.delayed(const Duration(seconds: 4), () {
         controller.close();
       });
@@ -319,8 +316,6 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> with Sing
     }
   }
 
-  /// The bytes already on screen when the full photo is cached, otherwise
-  /// the original file from [MediaItem.fullUrl]. Never re-encodes.
   Future<File> _materializeFullFile(MediaItem item) async {
     final dir = await getTemporaryDirectory();
     if (!item.isVideo) {
@@ -557,8 +552,6 @@ class _ViewerPageState extends ConsumerState<_ViewerPage> {
   int? _listenedId;
   bool _reported = false;
 
-  /// 0 is the link from the gallery list. 1 is the fresh link fetched after
-  /// that request failed, usually because the signed URL had expired.
   var _generation = 0;
   var _recovering = false;
   var _gaveUp = false;
@@ -689,8 +682,6 @@ class _ViewerPageState extends ConsumerState<_ViewerPage> {
         allowPlaybackSpeedChanging: false,
         draggableProgressBar: true,
         placeholder: const Center(child: CircularProgressIndicator(color: Colors.white)),
-        // Chewie's Android buffering check misses network stalls and shows
-        // the play button instead. The page draws its own spinner.
         bufferingBuilder: (_) => const SizedBox.shrink(),
         errorBuilder: (_, _) => const Center(
           child: Text('Could not play this video.', style: TextStyle(color: Colors.white)),
@@ -742,8 +733,6 @@ class _ViewerPageState extends ConsumerState<_ViewerPage> {
     });
   }
 
-  /// A stall while we still expect playback is a network wait. A pause with
-  /// data still buffered is the viewer pausing on purpose.
   void _evaluateBuffer() {
     final video = _video;
     if (!mounted || video == null || !video.value.isInitialized) return;
@@ -801,8 +790,6 @@ class _ViewerPageState extends ConsumerState<_ViewerPage> {
     unawaited(_recoverLink());
   }
 
-  /// The gallery list holds a short-lived view link. Ask for a new one and
-  /// load that, instead of leaving the failed picture on screen.
   Future<void> _recoverLink() async {
     final item = widget.item;
     try {
@@ -960,8 +947,6 @@ class _ViewerPageState extends ConsumerState<_ViewerPage> {
   }
 }
 
-/// Thumbnail already stored for the grid. Used until the full photo is saved,
-/// and as the poster for a video that is not the open page.
 Widget _cachedStandIn(MediaItem item, {bool playMark = false}) {
   final url = item.thumbnailUrl;
   return ColoredBox(
@@ -1032,7 +1017,7 @@ String _mimeForExtension(String? extension, {required bool video}) {
     'heic' => 'image/heic',
     'heif' => 'image/heif',
     'mp4' => 'video/mp4',
-    'mov' => 'video/quicktime',
+    'video/quicktime' => 'video/mov',
     'jpg' || 'jpeg' => 'image/jpeg',
     _ => video ? 'video/mp4' : 'image/jpeg',
   };

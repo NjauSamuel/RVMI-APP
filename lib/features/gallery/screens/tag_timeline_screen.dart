@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../favorites/providers/favorites_repository.dart';
+import '../../favorites/providers/favorites_repository.dart';
 import '../providers/gallery_feed_controller.dart';
 import 'media_viewer_screen.dart';
 import '../widgets/media_grid.dart';

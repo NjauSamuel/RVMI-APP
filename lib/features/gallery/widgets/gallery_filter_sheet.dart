@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../favorites/providers/favorites_repository.dart';
+import '../providers/gallery_feed_controller.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/storage/providers.dart';
@@ -63,36 +65,8 @@ class _GalleryFilterSheetState extends ConsumerState<GalleryFilterSheet> {
   }
 
   Future<List<Tag>> _loadTags() async {
-    final tags = await ref.read(favoritesRepositoryProvider).searchTags();
-    final prefs = ref.read(appPreferencesProvider);
-    final byId = {for (final tag in tags) tag.id: tag};
-    final ordered = <Tag>[];
-    var changed = prefs.tagOrder.length != tags.length;
-
-    for (final id in prefs.tagOrder) {
-      final tag = byId.remove(id);
-      if (tag != null) {
-        ordered.add(tag);
-      } else {
-        changed = true;
-      }
-    }
-
-    final fresh = byId.values.toList()..shuffle();
-    if (fresh.isNotEmpty) changed = true;
-    ordered.addAll(fresh);
-    if (changed) {
-      await prefs.setTagOrder([for (final tag in ordered) tag.id]);
-    }
-
-    final lead = prefs.leadingTagId;
-    if (lead != null) {
-      final index = ordered.indexWhere((tag) => tag.id == lead);
-      if (index > 0) {
-        ordered.insert(0, ordered.removeAt(index));
-      }
-    }
-    return ordered;
+    final tags = await ref.read(favoritesRepositoryProvider).listTags();
+    return tags..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
   }
 
   @override
@@ -153,30 +127,25 @@ class _GalleryFilterSheetState extends ConsumerState<GalleryFilterSheet> {
                     ),
                   ],
                   const SizedBox(height: 20),
-                  const _SectionLabel('Tag'),
+                                    const _SectionLabel('Tag'),
                   FutureBuilder<List<Tag>>(
                     future: _tags,
                     builder: (context, snapshot) {
-                      if (snapshot.hasError) {
-                        return const Text('Could not load tags.');
-                      }
-                      if (!snapshot.hasData) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: LinearProgressIndicator(),
-                        );
-                      }
+                      if (snapshot.hasError) return const Text('Could not load tags.');
+                      if (!snapshot.hasData) return const LinearProgressIndicator();
+
                       final tags = snapshot.data!;
                       return DropdownButtonFormField<int?>(
-                        initialValue: tags.any((tag) => tag.id == _tagId) ? _tagId : null,
-                        isExpanded: true,
-                        decoration: const InputDecoration(labelText: 'Tag'),
+                        value: _tagId,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
                         items: [
-                          const DropdownMenuItem<int?>(value: null, child: Text('Any tag')),
-                          for (final tag in tags)
-                            DropdownMenuItem<int?>(value: tag.id, child: Text(tag.name)),
+                          const DropdownMenuItem(value: null, child: Text('Any tag')),
+                          ...tags.map((tag) => DropdownMenuItem(value: tag.id, child: Text(tag.name))),
                         ],
-                        onChanged: (value) => setState(() => _tagId = value),
+                        onChanged: (val) => setState(() => _tagId = val),
                       );
                     },
                   ),
@@ -185,26 +154,21 @@ class _GalleryFilterSheetState extends ConsumerState<GalleryFilterSheet> {
                   FutureBuilder<List<ChurchEvent>>(
                     future: _events,
                     builder: (context, snapshot) {
-                      if (snapshot.hasError) {
-                        return const Text('Could not load events.');
-                      }
-                      if (!snapshot.hasData) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: LinearProgressIndicator(),
-                        );
-                      }
+                      if (snapshot.hasError) return const Text('Could not load events.');
+                      if (!snapshot.hasData) return const LinearProgressIndicator();
+
                       final events = snapshot.data!;
                       return DropdownButtonFormField<int?>(
-                        initialValue: events.any((event) => event.id == _eventId) ? _eventId : null,
-                        isExpanded: true,
-                        decoration: const InputDecoration(labelText: 'Event'),
+                        value: _eventId,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
                         items: [
-                          const DropdownMenuItem<int?>(value: null, child: Text('Any event')),
-                          for (final event in events)
-                            DropdownMenuItem<int?>(value: event.id, child: Text(event.title)),
+                          const DropdownMenuItem(value: null, child: Text('Any event')),
+                          ...events.map((event) => DropdownMenuItem(value: event.id, child: Text(event.title))),
                         ],
-                        onChanged: (value) => setState(() => _eventId = value),
+                        onChanged: (val) => setState(() => _eventId = val),
                       );
                     },
                   ),
@@ -246,6 +210,22 @@ class _GalleryFilterSheetState extends ConsumerState<GalleryFilterSheet> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _selectionChip<T>({
+    required String label,
+    required T value,
+    required T groupValue,
+    required ValueChanged<T> onSelected,
+  }) {
+    final selected = value == groupValue;
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (bool s) {
+        if (s) onSelected(value);
+      },
     );
   }
 
