@@ -43,6 +43,10 @@ Same as DeskCheque-Mobile: phone + PC on the same Wi-Fi, wireless debugging, the
 ## Build
 
 ```powershell
+# For Play Store release, build an Android App Bundle (.aab):
+flutter build appbundle --release
+
+# (For sideloading/test only, you can still build a regular APK:)
 flutter build apk --release
 ```
 
