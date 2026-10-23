@@ -58,12 +58,29 @@ flutter build apk --release
 
 Output: `build/app/outputs/flutter-apk/app-release.apk`. Always talks to `https://rvmi.deskcheque.top`.
 
-## BlueStacks shared folder
+## Versioning & tagging
 
-Use this when photos are edited on Windows and uploaded from the app. BlueStacks runs the Android APK. There is no separate Windows build.
+Flutter version format: `MAJOR.MINOR.PATCH+BUILD` in `pubspec.yaml` — `BUILD` maps directly to the Android `versionCode`, which Play requires to strictly increase on every upload.
 
-1. Install `app-release.apk` in a BlueStacks instance that includes the Play Store, then sign in with the same Google account used on the phone.
-2. Export JPEGs from the editor. The app rejects raw camera files. Copy the JPEGs into the BlueStacks shared folder (Media Manager).
-3. In the app, open Upload and pick those files. The shared folder is only where the files come from. The app has no custom folders. Upload from Home goes to the main library. Upload from an event attaches the photos to that event.
+Check the current version before bumping:
+```powershell
+cat pubspec.yaml | findstr version:
+```
 
-A phone-sized BlueStacks profile keeps the current mobile layout, even when the Windows window is large. A tablet profile, or a resolution whose shortest side is at least 600dp, shows more photo columns. At 840dp and wider, the bottom bar moves to a side rail.
+- **Patch** (bug fix): `1.0.0+1` → `1.0.1+2`
+  ```powershell
+  .\scripts\bump-version.ps1 patch
+  ```
+- **Minor** (new feature): `1.1.0+1` → `1.1.0+2`
+  ```powershell
+  .\scripts\bump-version.ps1 minor
+  ```
+- **Major** (breaking change): `1.0.0+1` → `2.0.0+2`
+  ```powershell
+  .\scripts\bump-version.ps1 major
+  ```
+
+This updates `pubspec.yaml`, commits, and creates an annotated tag `vX.Y.Z` — same shape as the other DeskCheque apps' release scripts. Then push:
+```powershell
+git push --follow-tags
+```
