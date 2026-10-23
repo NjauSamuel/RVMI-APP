@@ -2,7 +2,7 @@ name: rvmi_media
 description: "RVMI Media — church photo & video library, event discussions, and asset inventory."
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ^3.12.2
